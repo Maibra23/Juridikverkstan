@@ -30,7 +30,7 @@ from utils.lagrum import (
     validera_lagrum,
 )
 from utils.obsidian import registrera_case_analys
-from utils.prompts import build_case_prompt, build_quiz_prompt
+from utils.prompts import MAX_TECKEN_PER_FALT, build_case_prompt, build_quiz_prompt
 from utils.quiz import (
     modulresultat,
     ratta_flervalsfraga,
@@ -298,6 +298,7 @@ def _rnts_formular(case: Case) -> dict[str, str]:
             key=f"rnts_{case.id}_{nyckel}",
             placeholder=hjalp,
             height=90,
+            max_chars=MAX_TECKEN_PER_FALT,
         )
         svar[nyckel] = varde
         if nyckel == "norm":

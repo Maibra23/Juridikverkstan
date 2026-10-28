@@ -13,3 +13,7 @@ backgroundColor = "#FAF7F2"
 secondaryBackgroundColor = "#FFFFFF"
 textColor = "#1A2332"
 font = "serif"
+
+[client]
+# Ett fel visar ett allmänt meddelande, inte källkod och stackspår.
+showErrorDetails = "none"

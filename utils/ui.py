@@ -443,10 +443,10 @@ def render_session_cap_card() -> None:
 
 
 def render_daily_cap_card() -> None:
-    """Vänligt kort när den gemensamma dagsbudgeten är slut."""
-    from utils.llm_budget import DAILY_CAP_MESSAGE
+    """Vänligt kort när den gemensamma budgeten för dagen eller timmen är slut."""
+    from utils.llm_budget import cap_message
 
-    render_varning(DAILY_CAP_MESSAGE)
+    render_varning(cap_message())
 
 
 # --- Statuspanel och sidopanel ----------------------------------------------
