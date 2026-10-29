@@ -4,6 +4,7 @@
   dagens gemensamma budget, bara den här timmens andel.
 - Qwen3:s tänkande är av, så dolt resonemang debiteras inte på varje anrop.
 - Studentens text är avgränsad i prompten och avkortad per fält.
+- Ett svar som inte är en RNTS-granskning visas inte, och görs inte om.
 """
 
 from __future__ import annotations
@@ -13,7 +14,9 @@ import json
 import pytest
 
 from utils import llm_budget
+from utils.granskning import granska_tutorsvar
 from utils.prompts import MAX_TECKEN_PER_FALT, build_case_prompt
+from utils.rnts import RNTS_STEG
 from utils.scenarier import ladda_modul
 
 
@@ -161,3 +164,58 @@ def test_varje_falt_kortas_av(monkeypatch):
     assert "x" * MAX_TECKEN_PER_FALT in user
     assert "x" * (MAX_TECKEN_PER_FALT + 1) not in user
     assert "[avkortat]" in user
+
+
+# --- Svar utanför uppgiften -------------------------------------------------
+
+_GRANSKNING = (
+    "Rättsfrågan: du har formulerat den bra.\n"
+    "Norm: 4 § AvtL är rätt lagrum.\n"
+    "Tillämpning: utveckla varför accepten kom för sent.\n"
+    "Slutsats: motivera kort."
+)
+
+
+def test_svar_utan_rnts_stegen_stoppas():
+    dikt = "Här är en dikt om hösten, som du bad om:\nLöven faller sakta ner."
+    g = granska_tutorsvar(dikt, ("4 § AvtL",), RNTS_STEG)
+    assert not g.godkand
+    assert g.utanfor_uppgiften
+
+
+def test_rnts_granskning_godkanns_och_ett_steg_far_saknas():
+    assert granska_tutorsvar(_GRANSKNING, ("4 § AvtL",), RNTS_STEG).godkand
+    utan_slutsats = _GRANSKNING.rsplit("\n", 1)[0]
+    assert granska_tutorsvar(utan_slutsats, ("4 § AvtL",), RNTS_STEG).godkand
+
+
+def test_strukturkravet_galler_bara_nar_rubriker_anges():
+    # Quiz och begrepp har ingen fri studenttext och inga RNTS-rubriker.
+    assert granska_tutorsvar("Alternativ B är rätt enligt 4 § AvtL.", ("4 § AvtL",)).godkand
+
+
+def test_svar_utanfor_uppgiften_gors_inte_om(monkeypatch):
+    import utils.llm
+    from utils.tutor import generera_tutorsvar
+
+    anrop = []
+
+    def _chat(system_prompt, user_prompt, *a, **k):
+        anrop.append(user_prompt)
+        return "Visst! Här är ett Python-skript som sorterar en lista."
+
+    monkeypatch.setattr(utils.llm, "cached_chat", _chat)
+    svar = generera_tutorsvar("utanfor", "sys", "user", ("4 § AvtL",), RNTS_STEG)
+    assert not svar.godkand
+    assert svar.utanfor_uppgiften
+    assert svar.text == ""
+    assert len(anrop) == 1, "ett omförsök hade bara fördubblat kostnaden"
+
+
+def test_fallgranskningen_kraver_rnts_stegen():
+    from pathlib import Path
+
+    kalla = (Path(__file__).resolve().parent.parent / "utils" / "modulvy.py").read_text(
+        encoding="utf-8"
+    )
+    assert "rubriker=RNTS_STEG" in kalla

@@ -35,6 +35,7 @@ class Tutorsvar:
     input_hash: str
     godkand: bool = True
     skal: str = ""
+    utanfor_uppgiften: bool = False
 
 
 def _hash_inputs(system_prompt: str, user_prompt: str) -> str:
@@ -89,6 +90,7 @@ def generera_tutorsvar(
     system_prompt: str,
     user_prompt: str,
     underlag: tuple[str, ...] = (),
+    rubriker: tuple[str, ...] = (),
 ) -> Tutorsvar:
     """Anropa LLM:en, granska svaret och cachea det under ``nyckel``.
 
@@ -100,22 +102,27 @@ def generera_tutorsvar(
     Tutorsvar med tom text och ``godkand=False``, och anroparen visar
     uppgiftens deterministiska underlag i stället. Hellre inget svar än
     felaktig juridik: studenten kan inte skilja dem åt.
+
+    Ett svar som inte följer ``rubriker`` görs inte om. Det är nästan alltid
+    studentens text som styrt bort modellen från uppgiften, och samma prompt
+    en gång till hade bara fördubblat kostnaden för den som försöker.
     """
     from utils.granskning import granska_tutorsvar
     from utils.llm import cached_chat
 
     text = cached_chat(system_prompt, user_prompt)
-    granskning = granska_tutorsvar(text, underlag)
+    granskning = granska_tutorsvar(text, underlag, rubriker)
 
-    if not granskning.godkand:
+    if not granskning.godkand and not granskning.utanfor_uppgiften:
         text = cached_chat(system_prompt, user_prompt + SKARPNING)
-        granskning = granska_tutorsvar(text, underlag)
+        granskning = granska_tutorsvar(text, underlag, rubriker)
 
     svar = Tutorsvar(
         text=text if granskning.godkand else "",
         input_hash=_hash_inputs(system_prompt, user_prompt),
         godkand=granskning.godkand,
         skal=granskning.skal,
+        utanfor_uppgiften=granskning.utanfor_uppgiften,
     )
     _spara(nyckel, svar)
     return svar
@@ -129,6 +136,7 @@ def tutorknapp(
     knappnyckel: str | None = None,
     underlag: tuple[str, ...] = (),
     reservhanvisning: str = "",
+    rubriker: tuple[str, ...] = (),
 ) -> None:
     """Rita tutorknappen, hantera generering, granskning, cache och rendering.
 
@@ -140,7 +148,8 @@ def tutorknapp(
     - Fångar LLM-felhierarkin och visar svenska infokort i stället för att krascha.
 
     ``underlag`` är uppgiftens kända korrekta lagrum. Anges det granskas
-    svaret före visning, och underkända svar visas inte alls.
+    svaret före visning, och underkända svar visas inte alls. ``rubriker``
+    är stegen svaret måste följa (se utils.granskning.granska_tutorsvar).
     ``reservhanvisning`` pekar studenten mot det deterministiska underlag som
     redan finns på sidan, t.ex. "Tryck på *Jag har försökt, visa facit*
     nedan så länge".
@@ -167,7 +176,7 @@ def tutorknapp(
         try:
             with st.spinner("Tutorn läser ditt svar …"):
                 cachat = generera_tutorsvar(
-                    nyckel, system_prompt, user_prompt, underlag
+                    nyckel, system_prompt, user_prompt, underlag, rubriker
                 )
                 inaktuell = False
         except LLMSessionCapError:
@@ -194,6 +203,13 @@ def tutorknapp(
         hanvisning = (
             f" {reservhanvisning}" if reservhanvisning else ""
         )
+        if cachat.utanfor_uppgiften:
+            render_varning(
+                "Tutorn granskar bara RNTS-analyser av rättsfallet, och svaret "
+                "blev något annat. Skriv din analys av fallet i fälten ovan och "
+                f"försök igen.{hanvisning}"
+            )
+            return
         render_varning(
             "Tutorn kunde inte ge ett svar som går att verifiera mot appens "
             "lagrumslista, inte heller efter ett omförsök. Förklaringen visas "

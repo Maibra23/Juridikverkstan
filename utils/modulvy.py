@@ -280,6 +280,7 @@ def rendera_case_ovning(modul: str, case: Case) -> None:
         etikett="Be tutorn granska min analys",
         underlag=tuple(case.facit.lagrum),
         reservhanvisning="Tryck på **Jag har försökt, visa facit** nedan så länge.",
+        rubriker=RNTS_STEG,
     )
 
     # Facit efter försök, inte före: en jämförelse är bara lärorik om studenten

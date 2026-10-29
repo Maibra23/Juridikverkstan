@@ -88,6 +88,24 @@ class Granskning:
     skal: str
     ovarifierade: tuple[str, ...] = ()
     utanfor_underlag: tuple[str, ...] = ()
+    # Sant när svaret inte ens är en granskning av uppgiften (se
+    # _foljer_strukturen). Ett omförsök hjälper då inte.
+    utanfor_uppgiften: bool = False
+
+
+def _foljer_strukturen(text: str, rubriker: tuple[str, ...]) -> bool:
+    """Sant om svaret nämner minst alla stegrubriker utom en.
+
+    Fallgranskningens systemprompt kräver de fyra RNTS-rubrikerna. Ett svar
+    som inte nämner dem är inte en granskning av analysen utan något annat,
+    till exempel en dikt eller ett allmänt chattsvar som studenten bett om i
+    sitt analysfält. Lagrumskontrollen nedan släpper igenom sådant, eftersom
+    ett svar utan lagrum inte har något att underkännas för. Ett utelämnat
+    steg tolereras, så att ett i övrigt bra svar inte stoppas för det.
+    """
+    gemener = text.lower()
+    traffar = sum(1 for rubrik in rubriker if rubrik.lower() in gemener)
+    return traffar >= len(rubriker) - 1
 
 
 def _kanonisk(ref: Lagrumsref) -> str:
@@ -121,16 +139,28 @@ def _avvisas(ra: str, text: str) -> bool:
     return False
 
 
-def granska_tutorsvar(text: str | None, underlag: Iterable[str] = ()) -> Granskning:
+def granska_tutorsvar(
+    text: str | None,
+    underlag: Iterable[str] = (),
+    rubriker: tuple[str, ...] = (),
+) -> Granskning:
     """Avgör om ett tutorsvar kan visas för studenten.
 
     ``underlag`` är uppgiftens kända korrekta lagrum (facits lagrum för ett
     rättsfall, alternativens för en quizfråga, begreppets egna för en
     fördjupning). Tomt underlag betyder att bara påhitt kan stoppas.
+    ``rubriker`` är de stegrubriker svaret måste följa, när uppgiften har
+    sådana (RNTS-stegen för en fallgranskning).
     """
     innehall = text or ""
     if not innehall.strip():
         return Granskning(False, "Tomt svar från tutorn.")
+    if rubriker and not _foljer_strukturen(innehall, rubriker):
+        return Granskning(
+            False,
+            "Svaret följer inte stegen " + ", ".join(rubriker) + ".",
+            utanfor_uppgiften=True,
+        )
 
     kanda = _underlagsnycklar(underlag)
 
