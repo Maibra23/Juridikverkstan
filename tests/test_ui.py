@@ -843,3 +843,48 @@ def test_typsnittsstackar_finns_bara_i_root():
     _, efter_root = utils.css.CSS_MALL.split("--skugga:", 1)
     for literal in ("Georgia", "ui-monospace", "#6B6459", "#9A9384"):
         assert literal not in efter_root, f"{literal} ska ersättas av en token"
+
+
+# --- Fetstil i notiser (render_info och render_varning) ------------------------
+
+
+def test_notis_omvandlar_fetstil_utan_asterisker():
+    from utils.ui import _notis_html
+
+    ut = _notis_html("Tryck på **Jag har försökt, visa facit** nedan så länge.")
+    assert "<strong>Jag har försökt, visa facit</strong>" in ut
+    assert "*" not in ut
+
+
+def test_notis_omvandlar_kursiv():
+    from utils.ui import _notis_html
+
+    assert _notis_html("ett *ord* här") == "ett <em>ord</em> här"
+
+
+def test_notis_escapar_html_i_indata():
+    from utils.ui import _notis_html
+
+    ut = _notis_html("<script>alert(1)</script> **fet**")
+    assert "<script>" not in ut
+    assert "&lt;script&gt;" in ut
+    assert "<strong>fet</strong>" in ut
+
+
+def test_notis_lamnar_vanlig_text_orord():
+    from utils.ui import _notis_html
+
+    assert _notis_html("Inga rättsfall i den här modulen ännu.") == (
+        "Inga rättsfall i den här modulen ännu."
+    )
+
+
+@pytest.mark.parametrize("namn", ["render_info", "render_varning"])
+def test_notiskorten_renderar_fetstil(monkeypatch, namn):
+    from utils import ui
+
+    ritat: list[str] = []
+    monkeypatch.setattr(ui.st, "html", ritat.append)
+    getattr(ui, namn)("Klicka **Generera**.")
+    assert "<strong>Generera</strong>" in ritat[0]
+    assert "**" not in ritat[0]

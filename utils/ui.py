@@ -151,8 +151,8 @@ def render_lagrum_chip(ref: str, url: str | None = None, verifierad: bool = True
 
 
 def render_varning(text: str) -> None:
-    """Gult, handlingsorienterat varningskort."""
-    st.html(f'<div class="jok-varning">{html.escape(text)}</div>')
+    """Gult, handlingsorienterat varningskort. Tillåter **fet** och *kursiv*."""
+    st.html(f'<div class="jok-varning">{_notis_html(text)}</div>')
 
 
 def render_tranar(text: str) -> str:
@@ -191,6 +191,18 @@ def _md_till_html(kropp: str) -> str:
         return f"<strong>{inre}</strong>"
 
     kropp = _MD_FET.sub(_ersatt_fet, kropp)
+    return _MD_KURSIV.sub(r"<em>\1</em>", kropp)
+
+
+def _notis_html(text: str) -> str:
+    """Escapa en notistext och omvandla sedan bara **fet** och *kursiv*.
+
+    Notiserna escapades tidigare rakt av, så anropare som skrev
+    "**Jag har försökt, visa facit**" fick se asteriskerna. Texten escapas
+    först, så HTML i indata förblir overksam. RNTS-rubrikstilen från
+    _md_till_html används inte, eftersom en notis inte är ett tutorsvar.
+    """
+    kropp = _MD_FET.sub(r"<strong>\1</strong>", html.escape(text))
     return _MD_KURSIV.sub(r"<em>\1</em>", kropp)
 
 
@@ -283,8 +295,8 @@ def render_tutortext(text: str) -> None:
 
 
 def render_info(text: str) -> None:
-    """Blått informationskort (t.ex. disclaimer)."""
-    st.html(f'<div class="jok-info">{html.escape(text)}</div>')
+    """Blått informationskort (t.ex. disclaimer). Tillåter **fet** och *kursiv*."""
+    st.html(f'<div class="jok-info">{_notis_html(text)}</div>')
 
 
 def render_sidhjalp(punkter: tuple[str, ...], rubrik: str = "Så använder du den här sidan") -> None:
