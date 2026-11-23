@@ -160,22 +160,30 @@ Alla elva ser likadana ut och beter sig likadant. Bara innehållet skiljer.
 
 ### Vad du ser
 
-Sidhuvud, sedan tre flikar: **Rättsfall**, **Quiz**, **Lagrumsjakt**.
+Sidhuvud, sedan tre flikar: **Rättsfall**, **Quiz**, **Lagrumsjakt**. Raden
+ovanför titeln visar var modulen sitter i rättssystemet, till exempel
+"CIVILRÄTT / FÖRMÖGENHETSRÄTT / KONTRAKTSRÄTT", härlett ur navigeringsträdet.
 
 ### Flik 1, Rättsfall, steg för steg
 
-1. **Två knappar överst.** "Generera nytt rättsfall" (LLM) och "Visa appens
-   rättsfall". Den senare är utgråad tills du genererat något.
-2. **Välj rättsfall** i en rullista, om modulen har flera.
-3. **Scenariokortet** visar rubrik, svårighetsgrad och uppskattad tid.
+1. **Välj rättsfall** i en rullista överst. Appens kuraterade fall är
+   standardinnehållet och kommer därför först.
+2. **Nytt fiktivt rättsfall**, en ram under väljaren med svårighetsgrad och en
+   sekundär knapp "Generera nytt rättsfall" (LLM). När ett genererat fall är
+   aktivt visas även "Visa appens rättsfall" i samma ram; annars syns den inte.
+3. **Scenariokortet** visar rubrik, svårighetsgrad, uppskattad tid och källan:
+   "Appens rättsfall" eller "Genererat rättsfall, lagrum kontrollerade mot
+   registret".
 4. **RNTS-formuläret**, fyra textfält: Rättsfrågan, Norm, Tillämpning,
-   Slutsats. Till vänster en stepper som visar status per steg.
+   Slutsats. På bred skärm står scenariokortet till vänster och formuläret
+   till höger, med en vågrät stepper ovanför fälten som visar status per steg.
 5. **Normfältet rättas medan du skriver.** Skriver du `4 § AvtL` dyker ett
    guldchip upp direkt, klickbart till lagen.nu. Skriver du något ogiltigt får
    du en gul varning. Detta sker helt utan LLM (`modulvy._norm_feedback`).
 6. **Steppern** markerar Norm som godkänd först när *alla* lagrum i fältet
    verifierats. Övriga steg räknas som påbörjade så snart de har text.
-7. **"Be tutorn granska min analys"**, enda stället där LLM anropas i fliken.
+7. **"Be tutorn granska min analys"**, enda stället där LLM anropas i fliken,
+   och flikens enda primära knapp.
 8. **"Jag har försökt, visa facit"** låser upp facit: rättsfråga, lagrum,
    tillämpning och slutsats. Deterministiskt, men gömt tills studenten klickar.
 
@@ -185,16 +193,19 @@ matar Kunskapskartan, framstegsvyn och Obsidianexporten.
 
 ### Flik 2, Quiz
 
-Flervalsfrågor. Du väljer alternativ, trycker **Svara**, och rättas
-**deterministiskt** mot data. Rätt svar ger grönt med förklaring, fel svar
-ger rött plus vilket alternativ som var rätt. Har alternativet ett lagrum
-visas det som chip. Därefter kan du valfritt be tutorn förklara.
+Flervalsfrågor, var och en i en egen ram. Du väljer alternativ, trycker
+**Svara**, och rättas **deterministiskt** mot data. Rätt svar ger "Rätt svar."
+med förklaring, fel svar ger "Inte riktigt." plus vilket alternativ som var
+rätt. Har alternativet ett lagrum visas det som chip. Därefter kan du valfritt
+be tutorn förklara (sekundär knapp). Överst visas "3 av 8 besvarade, 2 rätt"
+först när du besvarat något.
 
 Resultatet registreras per modul och syns på Hem och Kunskapstest.
 
 ### Flik 3, Lagrumsjakt
 
-En situation beskrivs i text, du skriver vilket lagrum den handlar om. Rättas
+En situation beskrivs i text, i en egen ram per uppgift, och du skriver vilket
+lagrum den handlar om. Rättas
 deterministiskt av `utils/quiz.ratta_lagrumsjakt`. Skriver du en lag som inte
 finns i registret får du veta det uttryckligen. Ledtråd och facit finns.
 
@@ -231,13 +242,14 @@ lagrumsregistret faller appen tillbaka på ett kuraterat fall och säger till.
 
 ### Vad du ser
 
-Hjältesektion med kursnamn och en mening om metoden, en disclaimer, **Nästa
-steg** (den enda call-to-action-knappen, se avsnitt 2), och sist **Framsteg**.
+Hjältesektion med kursnamn och en mening om metoden, en disclaimer, en lugn
+textrad med RNTS-metodens fyra steg, **Nästa steg** (den enda
+call-to-action-knappen, se avsnitt 2), och sist **Framsteg**.
 
 ### Framstegssektionen
 
-Osynlig tills något finns att visa. Sedan: en sammanfattningsrad (påbörjade
-moduler, genomförda rättsfall, ev. quizresultat), en rad om att framstegen
+Osynlig tills något finns att visa. Sedan: tre tal med etikett (påbörjade
+moduler, genomförda rättsfall, ev. "5 av 7" rätt på quiz), en rad om att framstegen
 är sessionsbundna, och **tre nedladdningar**, Obsidianvalv som zip
 (primär), rapport i Markdown, rapport i Excel.
 
@@ -258,17 +270,18 @@ när RNTS-analyser är genomförda, så valvet växer med studentens arbete.
 
 ### Vad du ser
 
-Dina quizresultat per modul, och under det en lista över vilka moduler som har
-quizfrågor och hur många.
+En rad per modul med quizfrågor, i appens egen ordning. Varje rad har en
+länk till modulen, "x av y besvarade", andel rätt ("2 av 3 rätt (67 %)")
+när något är besvarat och en framstegsstapel. Innan något är besvarat visas
+en notis ovanför listan, men listan finns alltid, så sidan leder alltid
+vidare.
 
 ### Begränsningar
 
 Detta är **inte ett test**. Sidan ställer inga frågor, den summerar bara vad
 du redan svarat i modulerna. Sidhuvudet ("Dina resultat per modul") är ärligt,
-men namnet *Kunskapstest* leder fel, och modulens docstring beskriver ett
-blandat slumptest över alla moduler som aldrig byggdes.
-
-Sidan använder dessutom råa `st.info`, mot designsystemet.
+men namnet *Kunskapstest* leder fel. Ett blandat slumptest över alla moduler
+är en ny funktion och ligger utanför moderniseringen.
 
 ---
 
@@ -495,13 +508,14 @@ känna igen en paragrafhänvisning på formen innan hen kan läsa den.
 
 ### Statusindikatorer och kort
 
-- **RNTS-steppern**, fyra steg bredvid formuläret, var och en i ett av fyra
+- **RNTS-steppern**, fyra steg ovanför formuläret, var och en i ett av fyra
   lägen: tom cirkel (ej påbörjad), blå (pågår), gul (behöver mer), grön bock
-  (godkänd). Norm blir grön först när *alla* lagrum i fältet verifierats.
+  (godkänd). Läget står även i dold text för skärmläsare. Norm blir grön
+  först när *alla* lagrum i fältet verifierats.
 - **Lagrumschips**, guldkantade piller. Verifierade chips länkar till
   lagen.nu; overifierade får varningsstil och prefixet "Ej verifierad:".
-- **Framstegsraden** på Hem, en sammanfattning av påbörjade moduler,
-  genomförda rättsfall och quizresultat, synlig först när något finns att
+- **Framstegstalen** på Hem, påbörjade moduler, genomförda rättsfall och
+  quizresultat som tre tal med etikett, synliga först när något finns att
   visa.
 - **Begreppskort och lagkort** på Rättskartan.
 
@@ -795,7 +809,10 @@ Koden är skriven på svenska. Dessa dyker upp oftast:
 4. **Kunskapstest är ingen test**, bara en resultatvy.
 5. **`use_container_width` är deprecerad** i 5 anrop i 3 filer; borttagningen
    passerade 2025-12-31.
-6. **Råa `st.success/info/warning`** i fyra filer, mot designsystemet.
+6. ~~**Råa `st.success/info/warning`** i fyra filer, mot designsystemet.~~
+   **Åtgärdad:** temat färgar dem i appens palett, tomlägen använder
+   `render_info`, och regeln för vilken komponent som används när står i
+   design_system.md avsnitt 3.
 7. ~~**"Tolv moduler" men 13 kort** på Hem.~~ **Inaktuell:** modulkorten togs
    bort när Hem byggdes om kring en enda call-to-action (avsnitt 5).
 8. **Rättskartan bygger 52 begreppskort vid varje rerun**, även hopfällda.

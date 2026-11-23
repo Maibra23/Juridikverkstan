@@ -29,7 +29,7 @@ from utils.navigation import NAV_TRAD, Modul, Nod
 from utils.rnts import RNTS_STEG
 
 APP_VERSION = "0.1.0"
-APP_UPDATED = "2026-07-08"
+APP_UPDATED = "2026-11-23"
 
 # --- Palett (design_system.md avsnitt 1) ------------------------------------
 BLACK = "#1A2332"       # Bläck: primär text och rubriker
