@@ -1182,3 +1182,17 @@ def test_kartans_texter_saknar_kursord_och_et_tecken():
         assert "rätt & EU-rätt" not in kalla
     assert "Internationell rätt och EU-rätt" in kallor[0]
     assert "Lag i appens register" in kallor[0]
+
+
+# --- T15: Kunskapskartans legend -------------------------------------------------
+
+
+def test_kunskapskartans_legend_ar_fargrutor_i_grafens_farger():
+    from utils.graf_ui import _FARGER, legend_html
+
+    html_ut = legend_html()
+    assert html_ut.count('class="jok-swatch"') == len(_FARGER)
+    for f in _FARGER.values():
+        assert f["bg"] in html_ut
+    for etikett in ("Lagrum", "Rättsfall", "Modul"):
+        assert etikett in html_ut

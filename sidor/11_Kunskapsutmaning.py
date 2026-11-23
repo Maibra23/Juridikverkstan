@@ -65,9 +65,11 @@ with kol_slump:
 
 # Svårigheten väljs alltid av studenten. Överraska mig slumpar bara modulen,
 # inte nivån: studenten behåller kontrollen över hur svårt fallet blir.
-niva = svarighetsvaljare("utmaning_niva")
-
-generera = st.button("Generera nytt rättsfall", type="primary")
+# Nivå och genereringsknapp på samma rad: knappen är sidans enda primära
+# handling och hör ihop med nivån som styr den.
+with st.container(horizontal=True, vertical_alignment="bottom"):
+    niva = svarighetsvaljare("utmaning_niva")
+    generera = st.button("Generera nytt rättsfall", type="primary")
 
 if generera or overraska:
     stem = valj_slumpmodul() if overraska else vald_stem

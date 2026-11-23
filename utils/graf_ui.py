@@ -33,6 +33,25 @@ _FARGER = {
 }
 
 
+# Legendens etiketter, i samma ordning som _FARGER.
+_LEGENDETIKETT = {"lagrum": "Lagrum", "rattsfall": "Rättsfall", "modul": "Modul"}
+
+
+def legend_html() -> str:
+    """Färglegend för kunskapskartan som riktiga färgrutor, inte som prosa.
+
+    Samma mönster som Rättskartans legend (design_system.md 4.2). Färgerna
+    läses ur _FARGER, så legenden kan inte glida isär från grafen.
+    """
+    rutor = "".join(
+        '<span class="jok-legend-post">'
+        f'<span class="jok-swatch" style="background:{f["bg"]}"></span>'
+        f"{_LEGENDETIKETT[grupp]}</span>"
+        for grupp, f in _FARGER.items()
+    )
+    return f'<div class="jok-legend">{rutor}</div>'
+
+
 def _json_for_html(data: object) -> str:
     """Serialisera till JSON säkert för inbäddning i en <script>-tagg."""
     return json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
