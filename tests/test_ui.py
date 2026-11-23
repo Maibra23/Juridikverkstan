@@ -1159,3 +1159,26 @@ def test_metodraden_ar_text_och_inte_lankar():
     assert "<a " not in html_ut and "<button" not in html_ut
     for steg in RNTS_STEG:
         assert steg in html_ut
+
+
+# --- T14: Rättskartans texter ----------------------------------------------------
+
+
+def test_kartans_texter_saknar_kursord_och_et_tecken():
+    """Appen undviker kursord och "&" i löptext; kartans etiketter följer det."""
+    import pathlib
+
+    import utils.kraftgraf_ui
+    import utils.taxonomi_ui
+
+    kallor = [
+        pathlib.Path(utils.taxonomi_ui.__file__).read_text(encoding="utf-8"),
+        pathlib.Path(utils.kraftgraf_ui.__file__).read_text(encoding="utf-8"),
+        (pathlib.Path(utils.taxonomi_ui.__file__).parent / "static" / "kraftgraf.js")
+        .read_text(encoding="utf-8"),
+    ]
+    for kalla in kallor:
+        assert '"Kurslag' not in kalla
+        assert "rätt & EU-rätt" not in kalla
+    assert "Internationell rätt och EU-rätt" in kallor[0]
+    assert "Lag i appens register" in kallor[0]
