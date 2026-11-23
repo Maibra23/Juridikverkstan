@@ -456,16 +456,20 @@ def _rendera_quiz(modul: Modulscenarier) -> None:
 
     st.html(render_tranar(tranar_etikett("quiz")))
 
-    # Framstegsraden visas först när något är besvarat: "0 rätt av 0" före
-    # första svaret säger ingenting.
-    ratt, besvarade = modulresultat(modul.modul)
-    if besvarade:
-        st.markdown(quizframsteg(ratt, besvarade, len(modul.flervalsfragor)))
+    # Framstegsraden står överst men räknas först efter frågorna, så att ett
+    # svar som registreras i den här körningen syns direkt. Den visas först
+    # när något är besvarat: "0 rätt av 0" före första svaret säger ingenting.
+    framstegsplats = st.container()
 
     # Varje fråga i en egen ram i stället för avdelare mellan frågorna.
     for i, fraga in enumerate(modul.flervalsfragor, 1):
         with st.container(border=True):
             _rendera_quizfraga(modul.modul, i, fraga)
+
+    ratt, besvarade = modulresultat(modul.modul)
+    if besvarade:
+        with framstegsplats:
+            st.markdown(quizframsteg(ratt, besvarade, len(modul.flervalsfragor)))
 
 
 def quizframsteg(ratt: int, besvarade: int, antal: int) -> str:
@@ -535,14 +539,17 @@ def _rendera_lagrumsjakt(modul: Modulscenarier) -> None:
     st.html(render_tranar(tranar_etikett("lagrumsjakt")))
 
     st.caption(
-        "Skriv vilket lagrum situationen handlar om. Rättningen är deterministisk "
-        "och kräver ingen tutor. Du behöver inte §-tecknet. "
-        "\"3 paragrafen skuldebrevslagen\" fungerar lika bra som \"3 § SkbrL\". "
-        "(§ ligger oftast på tangenten till vänster om 1.)"
+        "Skriv vilket lagrum situationen handlar om. Rättningen kräver ingen tutor."
     )
+    st.caption(
+        "Paragraftecknet behövs inte: \"3 paragrafen skuldebrevslagen\" fungerar "
+        "lika bra som \"3 § SkbrL\"."
+    )
+    # Varje uppgift i en egen ram, så att situation, svar och rättning läses
+    # som en enhet.
     for i, jakt in enumerate(modul.lagrumsjakt, 1):
-        _rendera_jaktfraga(modul.modul, i, jakt)
-        st.divider()
+        with st.container(border=True):
+            _rendera_jaktfraga(modul.modul, i, jakt)
 
 
 def _jakt_ratta_nyckel(modul: str, jakt_id: str) -> str:
