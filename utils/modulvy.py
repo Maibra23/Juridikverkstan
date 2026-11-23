@@ -456,13 +456,21 @@ def _rendera_quiz(modul: Modulscenarier) -> None:
 
     st.html(render_tranar(tranar_etikett("quiz")))
 
+    # Framstegsraden visas först när något är besvarat: "0 rätt av 0" före
+    # första svaret säger ingenting.
     ratt, besvarade = modulresultat(modul.modul)
-    st.markdown(f"**Resultat:** {ratt} rätt av {besvarade} besvarade.")
-    st.divider()
+    if besvarade:
+        st.markdown(quizframsteg(ratt, besvarade, len(modul.flervalsfragor)))
 
+    # Varje fråga i en egen ram i stället för avdelare mellan frågorna.
     for i, fraga in enumerate(modul.flervalsfragor, 1):
-        _rendera_quizfraga(modul.modul, i, fraga)
-        st.divider()
+        with st.container(border=True):
+            _rendera_quizfraga(modul.modul, i, fraga)
+
+
+def quizframsteg(ratt: int, besvarade: int, antal: int) -> str:
+    """Quizflikens framstegsrad: "3 av 8 besvarade, 2 rätt"."""
+    return f"{besvarade} av {antal} besvarade, {ratt} rätt"
 
 
 def _rendera_quizfraga(modul: str, nr: int, fraga: Flervalsfraga) -> None:
@@ -490,7 +498,7 @@ def _rendera_quizfraga(modul: str, nr: int, fraga: Flervalsfraga) -> None:
         res = ratta_flervalsfraga(fraga, valt)
         alt = fraga.alternativ[valt]
         if res.korrekt:
-            st.success(f"Rätt! {res.forklaring}")
+            st.success(f"Rätt svar. {res.forklaring}")
         else:
             ratt_text = fraga.alternativ[res.ratt_index].text
             st.error(f"Inte riktigt. {res.forklaring}")
@@ -512,6 +520,7 @@ def _rendera_quizfraga(modul: str, nr: int, fraga: Flervalsfraga) -> None:
             knappnyckel=f"quiz_forklara_{modul}_{fraga.id}",
             underlag=underlag,
             reservhanvisning="Förklaringen till rätt svar står ovan.",
+            primar=False,
         )
 
 

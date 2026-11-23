@@ -1073,3 +1073,61 @@ def test_vagrat_stepper_har_egen_klass():
     assert 'class="jok-rnts vagrat"' in render_rnts_steg(
         (("Norm", RNTS_STATUS_PAGAR),), vagrat=True
     )
+
+
+# --- T10: quizfliken -----------------------------------------------------------
+
+
+def _quiz_ritat(
+    monkeypatch: pytest.MonkeyPatch, resultat: tuple[int, int], klar: bool = False
+) -> dict[str, list]:
+    """Kör _rendera_quiz med en fråga och samla markdown, success och tutoranrop."""
+    import streamlit as st
+
+    ritat: dict[str, list] = {"markdown": [], "success": [], "tutor": [], "ramar": []}
+    session = {f"quiz_klart_test_{_DUMMY_FRAGA.id}": True} if klar else {}
+    monkeypatch.setattr(st, "html", lambda s: None)
+    monkeypatch.setattr(st, "session_state", session)
+    monkeypatch.setattr(st, "markdown", lambda s, **k: ritat["markdown"].append(s))
+    monkeypatch.setattr(st, "success", lambda s, **k: ritat["success"].append(s))
+    monkeypatch.setattr(st, "error", lambda *a, **k: None)
+    monkeypatch.setattr(st, "caption", lambda *a, **k: None)
+    monkeypatch.setattr(st, "divider", lambda: ritat["ramar"].append("avdelare"))
+    monkeypatch.setattr(
+        st, "container", lambda *a, **k: ritat["ramar"].append(k) or contextlib.nullcontext()
+    )
+    monkeypatch.setattr(st, "radio", lambda *a, **k: 0 if klar else None)
+    monkeypatch.setattr(st, "button", lambda *a, **k: False)
+    monkeypatch.setattr(modulvy, "modulresultat", lambda modul: resultat)
+    monkeypatch.setattr(modulvy, "_lagrum_chip_rad", lambda *a: None)
+    monkeypatch.setattr(modulvy, "tutorknapp", lambda **k: ritat["tutor"].append(k))
+    modul = Modulscenarier(modul="test", case=(), flervalsfragor=(_DUMMY_FRAGA,), lagrumsjakt=())
+    modulvy._rendera_quiz(modul)
+    return ritat
+
+
+def test_quiz_utan_svar_visar_ingen_resultatrad(monkeypatch):
+    ritat = _quiz_ritat(monkeypatch, (0, 0))
+    assert not any("besvarade" in m for m in ritat["markdown"])
+
+
+def test_quiz_efter_svar_visar_framsteg(monkeypatch):
+    ritat = _quiz_ritat(monkeypatch, (1, 1))
+    assert "1 av 1 besvarade, 1 rätt" in ritat["markdown"]
+
+
+def test_quizfragor_ligger_i_ramar_utan_avdelare(monkeypatch):
+    ritat = _quiz_ritat(monkeypatch, (0, 0))
+    assert "avdelare" not in ritat["ramar"]
+    assert {"border": True} in ritat["ramar"]
+
+
+def test_ratt_svar_utan_utropstecken_och_sekundar_tutor(monkeypatch):
+    ritat = _quiz_ritat(monkeypatch, (1, 1), klar=True)
+    assert ritat["success"] and ritat["success"][0].startswith("Rätt svar.")
+    assert "!" not in ritat["success"][0]
+    assert ritat["tutor"][0]["primar"] is False
+
+
+def test_quizframsteg():
+    assert modulvy.quizframsteg(2, 3, 8) == "3 av 8 besvarade, 2 rätt"
