@@ -642,9 +642,12 @@ def render_sidebar() -> None:
     långsammare. Standardmodellen sätts i utils/llm.py.
     """
     with st.sidebar:
-        st.html('<div class="jok-section"><h2>Juridikverkstan</h2></div>')
-        st.caption("Fallbaserad träning med RNTS-metoden.")
-        st.divider()
+        # Kompakt varumärkesblock: ett block i stället för rubrik, bildtext
+        # och avdelare, så att trädet börjar högre upp i panelen.
+        st.html(
+            '<div class="jok-varumarke"><div class="namn">Juridikverkstan</div>'
+            '<div class="tagline">Fallbaserad träning med RNTS-metoden.</div></div>'
+        )
         render_sidopanel()
         st.divider()
         render_statuspanel()

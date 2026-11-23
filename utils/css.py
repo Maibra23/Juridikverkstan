@@ -155,6 +155,15 @@ CSS_MALL = """
         /* Sidopanelens vertikala rytm följer spacingskalan (2.2): avståndet
            MELLAN grupper är alltid större än avståndet INOM en grupp, så
            närheten bär strukturen utan att kräva ramar eller linjer. */
+        /* Varumärket överst i sidopanelen (design_system.md 4.1). */
+        .jok-varumarke {{ margin: 0 0 var(--s2) 0; }}
+        .jok-varumarke .namn {{
+            font-family: var(--font-serif); font-size: var(--t-h3);
+            font-weight: 700; color: var(--bl); line-height: 1.3;
+        }}
+        .jok-varumarke .tagline {{
+            font-size: var(--t-etikett); color: var(--gra); margin-top: var(--s1);
+        }}
         .jok-nav-kategori {{
             font-family: var(--font-mono);
             font-size: var(--t-etikett); letter-spacing: .1em; text-transform: uppercase;
