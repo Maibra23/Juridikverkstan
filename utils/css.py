@@ -128,6 +128,11 @@ CSS_MALL = """
         .jok-case p {{ font-family: var(--font-serif); font-variant-numeric: lining-nums;
             font-size: var(--t-brod); line-height: 1.65; color: var(--bl); margin: 0; }}
         .jok-rnts {{ margin: .4rem 0 .8rem 0; }}
+        /* Vågrät stepper ovanför RNTS-fälten i rättsfallsvyn. */
+        .jok-rnts.vagrat {{
+            display: flex; flex-wrap: wrap; gap: var(--s1) var(--s4);
+            margin: 0 0 var(--s3) 0;
+        }}
         .jok-rnts .steg {{
             display: flex; align-items: center; gap: .55rem;
             font-size: var(--t-etikett); color: var(--bl); padding: .22rem 0;

@@ -198,25 +198,29 @@ def _rendera_rattsfall(filnamn: str, modul: Modulscenarier) -> None:
     n_kalla = f"gen_kalla_{filnamn}"
     n_raknare = f"gen_raknare_{filnamn}"
 
-    niva = svarighetsvaljare(f"gen_niva_{filnamn}")
+    # Fallet först, generatorn sedan (design_system.md 4, Case-vyn): appens
+    # kuraterade fall är standardinnehållet och väljs överst. Platsen för
+    # väljaren reserveras här men fylls först när knapparna nedan har hanterats,
+    # så att ett klick på "Visa appens rättsfall" eller "Generera" syns direkt.
+    valjarplats = st.container()
 
-    kol_ny, kol_kuraterat = st.columns(2)
-    with kol_ny:
-        generera = st.button(
-            "Generera nytt rättsfall",
-            key=f"gen_knapp_{filnamn}",
-            type="primary",
-            width="stretch",
-            help="Skapar ett nytt, fiktivt fall inom modulens rättsområde. "
-            "Varje lagrum i facit kontrolleras mot appens lagrumsregister.",
-        )
-    with kol_kuraterat:
-        tillbaka = st.button(
-            "Visa appens rättsfall",
-            key=f"kur_knapp_{filnamn}",
-            width="stretch",
-            disabled=n_case not in st.session_state,
-        )
+    hade_genererat = n_case in st.session_state
+    with st.container(border=True):
+        st.caption("Nytt fiktivt rättsfall")
+        with st.container(horizontal=True, vertical_alignment="bottom"):
+            niva = svarighetsvaljare(f"gen_niva_{filnamn}")
+            generera = st.button(
+                "Generera nytt rättsfall",
+                key=f"gen_knapp_{filnamn}",
+                help="Skapar ett nytt, fiktivt fall inom modulens rättsområde. "
+                "Varje lagrum i facit kontrolleras mot appens lagrumsregister.",
+            )
+            # Knappen visas bara när det finns något att gå tillbaka från,
+            # i stället för att stå inaktiv i normalfallet.
+            tillbaka = hade_genererat and st.button(
+                "Visa appens rättsfall",
+                key=f"kur_knapp_{filnamn}",
+            )
 
     if tillbaka:
         for nyckel in (n_case, n_notis, n_kalla):
@@ -233,6 +237,10 @@ def _rendera_rattsfall(filnamn: str, modul: Modulscenarier) -> None:
         )
         st.session_state[n_kalla] = resultat.kalla
         st.session_state[n_notis] = resultat.notis
+        # Kontrollerna ovan ritades innan fallet fanns. En omkörning ritar
+        # om dem med "Visa appens rättsfall" på plats. Fallet ligger i
+        # sessionen, så omkörningen genererar inget nytt.
+        st.rerun()
 
     genererat = st.session_state.get(n_case)
     if genererat is not None:
@@ -244,42 +252,72 @@ def _rendera_rattsfall(filnamn: str, modul: Modulscenarier) -> None:
                 "Nytt rättsfall genererat och grundat mot appens lagrum. "
                 "Skriv din RNTS-analys och be tutorn granska den."
             )
-        rendera_case_ovning(modul.modul, genererat)
+        rendera_case_ovning(
+            modul.modul, genererat, kalla=st.session_state.get(n_kalla, "")
+        )
         return
 
     rubriker = [c.rubrik for c in modul.case]
-    val = st.selectbox("Välj rättsfall", options=rubriker, key=f"case_val_{modul.modul}")
+    with valjarplats:
+        val = st.selectbox(
+            "Välj rättsfall", options=rubriker, key=f"case_val_{modul.modul}"
+        )
     case = next(c for c in modul.case if c.rubrik == val)
 
-    rendera_case_ovning(modul.modul, case)
+    rendera_case_ovning(modul.modul, case, kalla=KALLA_KURATERAD)
 
 
-def rendera_case_ovning(modul: str, case: Case) -> None:
+KALLA_KURATERAD = "kuraterad"
+KALLA_GENERERAD = "genererad"  # samma värde som utils.generator sätter
+
+
+def kalla_text(kalla: str) -> str:
+    """Källraden på scenariokortet för ett fall med källan ``kalla``.
+
+    Bara ett fall som generatorn faktiskt skapat och grundat kallas genererat.
+    Generatorns reservfall ("fallback") är ett av appens egna fall och märks
+    som ett sådant. Tom källa ger ingen rad.
+    """
+    if not kalla:
+        return ""
+    if kalla == KALLA_GENERERAD:
+        return "Genererat rättsfall, lagrum kontrollerade mot registret"
+    return "Appens rättsfall"
+
+
+def rendera_case_ovning(modul: str, case: Case, kalla: str = "") -> None:
     """Rendera ett rättsfall som RNTS-övning: kort, formulär, tutor och facit.
 
     Delas av modulsidorna och Kunskapsutmaningen (utils.generator) så att både
     kuraterade och genererade fall får exakt samma flöde och verifiering.
     ``modul`` är modulens visningsnamn (används för framsteg och Obsidianexport).
+    ``kalla`` är fallets källa (se kalla_text) och visas på scenariokortet.
     """
-    st.html(
-        render_case(
-            rubrik=case.rubrik,
-            # etikett_for, inte det råa fältet: kuraterad data bär den äldre
-            # stavningen "svar", och den ska inte visas för studenten.
-            metadata=(
-                f"Svårighetsgrad {etikett_for(case.svarighetsgrad)}, "
-                f"cirka {case.uppskattad_tid_min} minuter"
-            ),
-            scenariotext=case.scenariotext,
+    # Två kolumner på bred skärm: fallet till vänster, steppern och fälten
+    # till höger, så att studenten ser faktan medan hen skriver. Streamlit
+    # staplar kolumnerna i samma ordning på smal skärm.
+    kol_fall, kol_analys = st.columns([5, 6], gap="large")
+    with kol_fall:
+        st.html(
+            render_case(
+                rubrik=case.rubrik,
+                # etikett_for, inte det råa fältet: kuraterad data bär den äldre
+                # stavningen "svar", och den ska inte visas för studenten.
+                metadata=(
+                    f"Svårighetsgrad {etikett_for(case.svarighetsgrad)}, "
+                    f"cirka {case.uppskattad_tid_min} minuter"
+                ),
+                scenariotext=case.scenariotext,
+                kalla=kalla_text(kalla),
+            )
         )
-    )
-
-    # Stepper till vänster om formuläret på bred skärm (design_system.md 4).
-    kol_stepper, kol_formular = st.columns([1, 3])
-    with kol_formular:
+    with kol_analys:
+        # Steppern står ovanför fälten men beror på deras innehåll, så platsen
+        # reserveras först och fylls när fälten är ritade.
+        stegplats = st.container()
         svar = _rnts_formular(case)
-    with kol_stepper:
-        st.html(render_rnts_steg(_rnts_statusar(svar)))
+        with stegplats:
+            st.html(render_rnts_steg(_rnts_statusar(svar), vagrat=True))
 
     # Ett rättsfall räknas som genomfört när hela RNTS-analysen är ifylld
     # (deterministiskt, ingen LLM krävs). Läses av framstegsvyn och exporten.

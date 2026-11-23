@@ -137,8 +137,13 @@ def tutorknapp(
     underlag: tuple[str, ...] = (),
     reservhanvisning: str = "",
     rubriker: tuple[str, ...] = (),
+    primar: bool = True,
 ) -> None:
     """Rita tutorknappen, hantera generering, granskning, cache och rendering.
+
+    ``primar`` styr knappens vikt. En vy har en enda primär handling: i
+    rättsfallsfliken är det tutorns granskning, medan "Förklara med tutorn"
+    efter varje quizfråga är sekundär (design_system.md 3, knappregeln).
 
     Beteende:
     - Utan cachat svar: en knapp med ``etikett``. Genererar vid tryck.
@@ -170,7 +175,9 @@ def tutorknapp(
     knappnyckel = knappnyckel or f"tutorknapp_{nyckel}"
 
     knapptext = etikett if cachat is None else "Uppdatera förklaringen"
-    tryckt = st.button(knapptext, key=knappnyckel, type="primary")
+    tryckt = st.button(
+        knapptext, key=knappnyckel, type="primary" if primar else "secondary"
+    )
 
     if tryckt:
         try:

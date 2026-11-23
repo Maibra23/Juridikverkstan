@@ -952,3 +952,124 @@ def test_css_har_sr_only_och_fokusring():
     css = utils.css.CSS_MALL
     assert ".sr-only {{" in css
     assert ":focus-visible" in css
+
+
+# --- T09: rättsfallsfliken (fallet först, en primär handling, källrad) ----------
+
+
+def _rattsfall_knappar(
+    monkeypatch: pytest.MonkeyPatch,
+    session: dict,
+    klickad: str | None = None,
+) -> tuple[list[dict], list[tuple], list[str]]:
+    """Kör _rendera_rattsfall och samla knappar, case-anrop och generatoranrop.
+
+    Samma teknik som _rattsfall_html ovan. Varje knapp sparas med sin etikett
+    och sina nyckelordsargument, så att typen (primär eller sekundär) kan
+    kontrolleras. ``klickad`` är etiketten på den knapp som ska returnera True.
+    """
+    import streamlit as st
+
+    knappar: list[dict] = []
+    ovningar: list[tuple] = []
+    genereringar: list[str] = []
+
+    def _knapp(etikett, **k):
+        knappar.append({"etikett": etikett, **k})
+        return etikett == klickad
+
+    monkeypatch.setattr(st, "html", lambda s: None)
+    monkeypatch.setattr(st, "session_state", session)
+    monkeypatch.setattr(st, "segmented_control", lambda *a, **k: None)
+    monkeypatch.setattr(st, "container", lambda *a, **k: contextlib.nullcontext())
+    monkeypatch.setattr(st, "caption", lambda *a, **k: None)
+    monkeypatch.setattr(st, "success", lambda *a, **k: None)
+    monkeypatch.setattr(st, "spinner", lambda *a, **k: contextlib.nullcontext())
+    monkeypatch.setattr(st, "button", _knapp)
+    monkeypatch.setattr(st, "rerun", lambda: None)
+    monkeypatch.setattr(st, "selectbox", lambda label, options, **k: options[0])
+    monkeypatch.setattr(
+        modulvy, "rendera_case_ovning", lambda *a, **k: ovningar.append((a, k))
+    )
+
+    def _generera(filnamn, svarighetsgrad):
+        genereringar.append(filnamn)
+        from types import SimpleNamespace
+
+        return SimpleNamespace(case=_DUMMY_CASE, kalla="genererad", notis="")
+
+    monkeypatch.setattr(modulvy, "generera_case", _generera)
+    modul = Modulscenarier(modul="test", case=(_DUMMY_CASE,), flervalsfragor=(), lagrumsjakt=())
+    modulvy._rendera_rattsfall("test", modul)
+    return knappar, ovningar, genereringar
+
+
+def test_visa_appens_rattsfall_doljs_utan_genererat_fall(monkeypatch):
+    knappar, _, _ = _rattsfall_knappar(monkeypatch, {})
+    assert "Visa appens rättsfall" not in [k["etikett"] for k in knappar]
+
+
+def test_visa_appens_rattsfall_visas_med_genererat_fall(monkeypatch):
+    knappar, _, _ = _rattsfall_knappar(monkeypatch, {"gen_case_test": _DUMMY_CASE})
+    assert "Visa appens rättsfall" in [k["etikett"] for k in knappar]
+
+
+def test_generera_ar_sekundar_i_modulfliken(monkeypatch):
+    """Tutorns granskning är fliken enda primära handling."""
+    knappar, _, _ = _rattsfall_knappar(monkeypatch, {"gen_case_test": _DUMMY_CASE})
+    assert knappar
+    for knapp in knappar:
+        assert knapp.get("type", "secondary") != "primary", knapp["etikett"]
+
+
+def test_ingen_generering_utan_klick(monkeypatch):
+    """En rerun (tangenttryck i RNTS-fälten) får aldrig byta ut fallet."""
+    _, ovningar, genereringar = _rattsfall_knappar(monkeypatch, {})
+    assert genereringar == []
+    assert ovningar[0][1]["kalla"] == modulvy.KALLA_KURATERAD
+
+
+def test_klick_genererar_och_marker_fallet_som_genererat(monkeypatch):
+    session: dict = {}
+    _, ovningar, genereringar = _rattsfall_knappar(
+        monkeypatch, session, klickad="Generera nytt rättsfall"
+    )
+    assert genereringar == ["test"]
+    assert session["gen_case_test"].id == "test-gen-1"
+    assert ovningar[-1][1]["kalla"] == "genererad"
+
+
+def test_tillbaka_visar_appens_fall_direkt(monkeypatch):
+    session = {"gen_case_test": _DUMMY_CASE, "gen_kalla_test": "genererad"}
+    _, ovningar, _ = _rattsfall_knappar(
+        monkeypatch, session, klickad="Visa appens rättsfall"
+    )
+    assert "gen_case_test" not in session
+    assert ovningar[-1][1]["kalla"] == modulvy.KALLA_KURATERAD
+
+
+@pytest.mark.parametrize(
+    ("kalla", "text"),
+    [
+        ("genererad", "Genererat rättsfall, lagrum kontrollerade mot registret"),
+        ("fallback", "Appens rättsfall"),
+        ("kuraterad", "Appens rättsfall"),
+        ("", ""),
+    ],
+)
+def test_kalla_text(kalla, text):
+    assert modulvy.kalla_text(kalla) == text
+
+
+def test_scenariokortet_visar_kallan_sist_pa_metaraden():
+    html_ut = render_case(
+        rubrik="R", metadata="Svårighetsgrad Grund, cirka 10 minuter",
+        scenariotext="T", kalla="Appens rättsfall",
+    )
+    assert "Svårighetsgrad Grund, cirka 10 minuter. Appens rättsfall" in html_ut
+
+
+def test_vagrat_stepper_har_egen_klass():
+    assert 'class="jok-rnts vagrat"' in render_rnts_steg(
+        (("Norm", RNTS_STATUS_PAGAR),), vagrat=True
+    )

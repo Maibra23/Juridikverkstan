@@ -98,6 +98,10 @@ else:
             "Skriv din RNTS-analys och be tutorn granska den."
         )
     st.divider()
-    rendera_case_ovning(st.session_state["utmaning_modul"], case)
+    rendera_case_ovning(
+        st.session_state["utmaning_modul"],
+        case,
+        kalla=st.session_state.get("utmaning_kalla", ""),
+    )
 
 st.html(footer_note())

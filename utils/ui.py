@@ -79,9 +79,15 @@ def section_heading(eyebrow: str, title: str) -> str:
     )
 
 
-def render_case(rubrik: str, metadata: str, scenariotext: str) -> str:
-    """Scenariokort med rubrik, metadatarad och tunn guldlinje överst."""
-    meta = f'<div class="meta">{html.escape(metadata)}</div>' if metadata else ""
+def render_case(rubrik: str, metadata: str, scenariotext: str, kalla: str = "") -> str:
+    """Scenariokort med rubrik, metadatarad och tunn guldlinje överst.
+
+    ``kalla`` säger var fallet kommer ifrån ("Appens rättsfall" eller
+    "Genererat rättsfall, ...") och läggs sist på metadataraden, så att ett
+    genererat fall aldrig kan misstas för ett kuraterat (design_system.md 5).
+    """
+    metarad = ". ".join(d for d in (metadata, kalla) if d)
+    meta = f'<div class="meta">{html.escape(metarad)}</div>' if metarad else ""
     return (
         f'<div class="jok-case"><h3>{html.escape(rubrik)}</h3>{meta}'
         f"<p>{html.escape(scenariotext)}</p></div>"
@@ -120,8 +126,8 @@ _EXTERN_REL = ' rel="noopener noreferrer"'
 _NY_FLIK = '<span class="sr-only"> (öppnas på lagen.nu i ny flik)</span>'
 
 
-def render_rnts_steg(steg: tuple[tuple[str, str], ...]) -> str:
-    """Vertikal RNTS-stepper: (etikett, status) per steg.
+def render_rnts_steg(steg: tuple[tuple[str, str], ...], vagrat: bool = False) -> str:
+    """RNTS-stepper: (etikett, status) per steg. Lodrät, eller vågrät med ``vagrat``.
 
     Status måste vara en av RNTS_STATUS_*-konstanterna; annars ValueError
     (fail fast så att en felstavad status inte renderas tyst som tom cirkel).
@@ -139,8 +145,9 @@ def render_rnts_steg(steg: tuple[tuple[str, str], ...]) -> str:
             f"<span>{html.escape(etikett)}</span>"
             f'<span class="sr-only">, {_RNTS_STATUSTEXT[status]}</span></div>'
         )
+    klass = "jok-rnts vagrat" if vagrat else "jok-rnts"
     return (
-        '<div class="jok-rnts" role="list" aria-label="RNTS-steg">'
+        f'<div class="{klass}" role="list" aria-label="RNTS-steg">'
         f'{"".join(rader)}</div>'
     )
 
