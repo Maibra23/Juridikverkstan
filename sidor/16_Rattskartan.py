@@ -35,6 +35,7 @@ from utils.prompts import LAS_FORDJUPNING, LAS_OVNING, build_begrepp_prompt
 from utils.rattskarta import delomraden, delomraden_med_vag, falltypsguide
 from utils.rattssystem_graf import bygg_taxonomigraf, gren_id
 from utils.taxonomi_ui import render_farglegend, render_taxonomigraf
+from utils.texter import kedja_etikett
 from utils.tutor import tutorknapp
 from utils.ui import (
     footer_note,
@@ -155,7 +156,7 @@ with flik_system:
         lagar = lov.lagar
         if not visa_referens:
             lagar = tuple(lag for lag in lagar if not lag.ar_referens)
-        etikett = ": ".join((*vag, lov.namn))
+        etikett = kedja_etikett((*vag, lov.namn))
         with st.expander(etikett, expanded=False):
             st.markdown(lov.beskrivning)
             if lov.nar:
@@ -395,7 +396,7 @@ with flik_begrepp:
                 continue
 
             namn_for = {x.id: x.term for x in alla_begrepp}
-            etikett = f"{namn}: {len(i_omrade)} begrepp"
+            etikett = f"{namn} ({len(i_omrade)} begrepp)"
             with st.expander(etikett, expanded=filtrerar):
                 for b in i_omrade:
                     _rendera_begrepp(b, namn_for)

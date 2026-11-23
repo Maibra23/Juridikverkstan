@@ -248,8 +248,8 @@ def rendera_case_ovning(modul: str, case: Case) -> None:
             # etikett_for, inte det råa fältet: kuraterad data bär den äldre
             # stavningen "svar", och den ska inte visas för studenten.
             metadata=(
-                f"Svårighetsgrad: {etikett_for(case.svarighetsgrad)}: "
-                f"ca {case.uppskattad_tid_min} min"
+                f"Svårighetsgrad {etikett_for(case.svarighetsgrad)}, "
+                f"cirka {case.uppskattad_tid_min} minuter"
             ),
             scenariotext=case.scenariotext,
         )

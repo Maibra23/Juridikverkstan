@@ -440,7 +440,7 @@ def footer_note(version: str = APP_VERSION, updated: str = APP_UPDATED) -> str:
         '<div class="jok-footer">'
         "Detta är ett studieverktyg, inte juridisk rådgivning. "
         "Kontrollera alltid lagrum mot lagen.nu. "
-        f"Version {html.escape(version)}: uppdaterad {html.escape(updated)}."
+        f"Version {html.escape(version)}, uppdaterad {html.escape(updated)}."
         "</div>"
     )
 

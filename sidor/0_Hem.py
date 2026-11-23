@@ -24,7 +24,7 @@ from utils.framsteg import pabborjade_moduler
 from utils.navigation import SENAST_BESOKT_NYCKEL, cta_mal, sida_for_namn
 from utils.obsidian import bygg_valv, hamta_case_analyser
 from utils.quiz import alla_resultat
-from utils.texter import antal_med_enhet
+from utils.texter import antal_med_enhet, uppraknad
 from utils.ui import footer_note, hero, section_heading
 
 
@@ -114,12 +114,12 @@ def _render_framsteg() -> None:
         antal_med_enhet(fall, "rättsfall genomfört", "rättsfall genomförda"),
     ]
     if besvarade:
-        delar.append(f"{ratt}/{besvarade} rätt på quiz")
-    st.markdown(": ".join(delar))
+        delar.append(f"{ratt} av {besvarade} rätt på quiz")
+    st.markdown(uppraknad(delar))
 
     st.caption(
         "Framstegen gäller den här sessionen. Stänger du fliken är de borta. "
-        "ladda ner dem nedan för att behålla dem."
+        "Ladda ner dem nedan för att behålla dem."
     )
     _render_export(case_bok)
 
