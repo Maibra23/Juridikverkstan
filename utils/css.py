@@ -340,5 +340,15 @@ CSS_MALL = """
             text-transform: uppercase; color: var(--gra);
             margin: var(--s3) 0 var(--s2) 0;
         }}
+
+        /* Smal skärm (telefon). Typskalan och spacingskalan gäller fortfarande;
+           bara stegen byts, så att inget nytt värde införs. */
+        @media (max-width: 640px) {{
+            .jok-hero h1 {{ font-size: var(--t-h2); }}
+            .jok-case, .jok-lagkort, .jok-begrepp {{ padding: var(--s4); }}
+            .jok-stat-rad {{ gap: var(--s4); }}
+            .jok-lagkort .avsnittsrad .spann {{ flex-basis: 5rem; }}
+            .jok-hero .eyebrow {{ letter-spacing: .08em; }}
+        }}
         </style>
         """
