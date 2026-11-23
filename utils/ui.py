@@ -29,7 +29,7 @@ from utils.navigation import NAV_TRAD, Modul, Nod
 from utils.rnts import RNTS_STEG
 
 APP_VERSION = "0.1.0"
-APP_UPDATED = "2026-07-08"
+APP_UPDATED = "2026-11-23"
 
 # --- Palett (design_system.md avsnitt 1) ------------------------------------
 BLACK = "#1A2332"       # Bläck: primär text och rubriker
@@ -79,9 +79,15 @@ def section_heading(eyebrow: str, title: str) -> str:
     )
 
 
-def render_case(rubrik: str, metadata: str, scenariotext: str) -> str:
-    """Scenariokort med rubrik, metadatarad och tunn guldlinje överst."""
-    meta = f'<div class="meta">{html.escape(metadata)}</div>' if metadata else ""
+def render_case(rubrik: str, metadata: str, scenariotext: str, kalla: str = "") -> str:
+    """Scenariokort med rubrik, metadatarad och tunn guldlinje överst.
+
+    ``kalla`` säger var fallet kommer ifrån ("Appens rättsfall" eller
+    "Genererat rättsfall, ...") och läggs sist på metadataraden, så att ett
+    genererat fall aldrig kan misstas för ett kuraterat (design_system.md 5).
+    """
+    metarad = ". ".join(d for d in (metadata, kalla) if d)
+    meta = f'<div class="meta">{html.escape(metarad)}</div>' if metarad else ""
     return (
         f'<div class="jok-case"><h3>{html.escape(rubrik)}</h3>{meta}'
         f"<p>{html.escape(scenariotext)}</p></div>"
@@ -105,9 +111,23 @@ _RNTS_TILLSTAND = (
     RNTS_STATUS_BEHOVER_MER,
 )
 
+# Tillståndet i ord för skärmläsare: stepperns form och färg ensamma säger
+# inget för den som inte ser dem (design_system.md 5, aldrig enbart färg).
+_RNTS_STATUSTEXT = {
+    RNTS_STATUS_EJ_PABORJAD: "ej påbörjad",
+    RNTS_STATUS_PAGAR: "pågår",
+    RNTS_STATUS_GODKAND: "godkänd",
+    RNTS_STATUS_BEHOVER_MER: "behöver mer",
+}
 
-def render_rnts_steg(steg: tuple[tuple[str, str], ...]) -> str:
-    """Vertikal RNTS-stepper: (etikett, status) per steg.
+# Externa länkar öppnas i ny flik. rel hindrar den öppnade sidan från att nå
+# appens fönster, och den dolda texten säger till skärmläsare vad som händer.
+_EXTERN_REL = ' rel="noopener noreferrer"'
+_NY_FLIK = '<span class="sr-only"> (öppnas på lagen.nu i ny flik)</span>'
+
+
+def render_rnts_steg(steg: tuple[tuple[str, str], ...], vagrat: bool = False) -> str:
+    """RNTS-stepper: (etikett, status) per steg. Lodrät, eller vågrät med ``vagrat``.
 
     Status måste vara en av RNTS_STATUS_*-konstanterna; annars ValueError
     (fail fast så att en felstavad status inte renderas tyst som tom cirkel).
@@ -120,16 +140,43 @@ def render_rnts_steg(steg: tuple[tuple[str, str], ...]) -> str:
                 f"Tillåtna: {sorted(_RNTS_TILLSTAND)}"
             )
         rader.append(
-            f'<div class="steg {status}"><span class="ikon"></span>'
-            f"<span>{html.escape(etikett)}</span></div>"
+            f'<div class="steg {status}" role="listitem">'
+            '<span class="ikon" aria-hidden="true"></span>'
+            f"<span>{html.escape(etikett)}</span>"
+            f'<span class="sr-only">, {_RNTS_STATUSTEXT[status]}</span></div>'
         )
-    return f'<div class="jok-rnts">{"".join(rader)}</div>'
+    klass = "jok-rnts vagrat" if vagrat else "jok-rnts"
+    return (
+        f'<div class="{klass}" role="list" aria-label="RNTS-steg">'
+        f'{"".join(rader)}</div>'
+    )
 
 
 def pipeline_steps(steps: list[str]) -> str:
-    """Vågrät stegindikator för arbetsgången."""
-    inner = "".join(f"<span>{i}. {html.escape(s)}</span>" for i, s in enumerate(steps, 1))
-    return f'<div class="jok-pipeline">{inner}</div>'
+    """Vågrät stegrad för arbetsgången, t.ex. RNTS-metoden på startsidan.
+
+    Ren text utan ram: stegen är en beskrivning av metoden, inte knappar, och
+    ska inte kunna misstas för navigering (design_system.md 4, princip 6).
+    """
+    inner = "".join(
+        f'<span><span class="nr">{i}</span> {html.escape(s)}</span>'
+        for i, s in enumerate(steps, 1)
+    )
+    return f'<div class="jok-metod" aria-label="Arbetsgången">{inner}</div>'
+
+
+def stat_rad(poster: tuple[tuple[str, str], ...]) -> str:
+    """Rad med tal och etikett, t.ex. (("3", "moduler påbörjade"), ...).
+
+    Talen sätts med tabellsiffror så att de står still när de ändras. Raden
+    bryts till en kolumn på smal skärm.
+    """
+    block = "".join(
+        f'<div class="jok-stat"><div class="tal">{html.escape(tal)}</div>'
+        f'<div class="etikett">{html.escape(etikett)}</div></div>'
+        for tal, etikett in poster
+    )
+    return f'<div class="jok-stat-rad">{block}</div>'
 
 
 def render_lagrum_chip(ref: str, url: str | None = None, verifierad: bool = True,
@@ -145,14 +192,14 @@ def render_lagrum_chip(ref: str, url: str | None = None, verifierad: bool = True
     if url:
         return (
             f'<a class="{klass}" href="{html.escape(url)}" target="_blank"'
-            f'{tooltip}>{etikett}</a>'
+            f'{_EXTERN_REL}{tooltip}>{etikett}{_NY_FLIK}</a>'
         )
     return f'<span class="{klass}"{tooltip}>{etikett}</span>'
 
 
 def render_varning(text: str) -> None:
-    """Gult, handlingsorienterat varningskort."""
-    st.html(f'<div class="jok-varning">{html.escape(text)}</div>')
+    """Gult, handlingsorienterat varningskort. Tillåter **fet** och *kursiv*."""
+    st.html(f'<div class="jok-varning">{_notis_html(text)}</div>')
 
 
 def render_tranar(text: str) -> str:
@@ -194,6 +241,18 @@ def _md_till_html(kropp: str) -> str:
     return _MD_KURSIV.sub(r"<em>\1</em>", kropp)
 
 
+def _notis_html(text: str) -> str:
+    """Escapa en notistext och omvandla sedan bara **fet** och *kursiv*.
+
+    Notiserna escapades tidigare rakt av, så anropare som skrev
+    "**Jag har försökt, visa facit**" fick se asteriskerna. Texten escapas
+    först, så HTML i indata förblir overksam. RNTS-rubrikstilen från
+    _md_till_html används inte, eftersom en notis inte är ett tutorsvar.
+    """
+    kropp = _MD_FET.sub(r"<strong>\1</strong>", html.escape(text))
+    return _MD_KURSIV.sub(r"<em>\1</em>", kropp)
+
+
 def _tutortext_html(text: str) -> tuple[str, tuple]:
     """Bygg HTML för ett tutorsvar och returnera (html, overifierade träffar).
 
@@ -221,7 +280,7 @@ def _tutortext_html(text: str) -> tuple[str, tuple]:
         tooltip = f' title="{html.escape(titel)}"' if titel else ""
         chip = (
             f'<a class="jok-chip" href="{html.escape(t.url or "")}" target="_blank"'
-            f'{tooltip}>{html.escape(ra)}</a>'
+            f'{_EXTERN_REL}{tooltip}>{html.escape(ra)}{_NY_FLIK}</a>'
         )
         kropp = kropp.replace(html.escape(ra), chip)
 
@@ -283,8 +342,8 @@ def render_tutortext(text: str) -> None:
 
 
 def render_info(text: str) -> None:
-    """Blått informationskort (t.ex. disclaimer)."""
-    st.html(f'<div class="jok-info">{html.escape(text)}</div>')
+    """Blått informationskort (t.ex. disclaimer). Tillåter **fet** och *kursiv*."""
+    st.html(f'<div class="jok-info">{_notis_html(text)}</div>')
 
 
 def render_sidhjalp(punkter: tuple[str, ...], rubrik: str = "Så använder du den här sidan") -> None:
@@ -329,8 +388,9 @@ def render_lagkort(
         f'<div class="nar"><strong>När övervägs den?</strong> {html.escape(nar)}</div>'
         f"{rel}"
         f"{_avsnittsblock(lagavsnitt, tackning)}"
-        f'<div class="nar"><a href="{html.escape(url)}" target="_blank">'
-        f"Öppna {html.escape(forkortning)} på lagen.nu</a></div>"
+        f'<div class="nar"><a href="{html.escape(url)}" target="_blank"{_EXTERN_REL}>'
+        f"Öppna {html.escape(forkortning)} på lagen.nu"
+        '<span class="sr-only"> (i ny flik)</span></a></div>'
         "</div>"
     )
 
@@ -368,8 +428,8 @@ def _avsnittsblock(grupper: tuple, tackning: str) -> str:
             )
             delar.append(
                 '<div class="avsnittsrad">'
-                f'<a class="spann" href="{html.escape(rad.url)}" target="_blank">'
-                f"{html.escape(rad.spann)}</a>"
+                f'<a class="spann" href="{html.escape(rad.url)}" target="_blank"'
+                f"{_EXTERN_REL}>{html.escape(rad.spann)}{_NY_FLIK}</a>"
                 f"{text}"
                 "</div>"
             )
@@ -428,7 +488,7 @@ def footer_note(version: str = APP_VERSION, updated: str = APP_UPDATED) -> str:
         '<div class="jok-footer">'
         "Detta är ett studieverktyg, inte juridisk rådgivning. "
         "Kontrollera alltid lagrum mot lagen.nu. "
-        f"Version {html.escape(version)}: uppdaterad {html.escape(updated)}."
+        f"Version {html.escape(version)}, uppdaterad {html.escape(updated)}."
         "</div>"
     )
 
@@ -443,10 +503,10 @@ def render_session_cap_card() -> None:
 
 
 def render_daily_cap_card() -> None:
-    """Vänligt kort när den gemensamma dagsbudgeten är slut."""
-    from utils.llm_budget import DAILY_CAP_MESSAGE
+    """Vänligt kort när den gemensamma budgeten för dagen eller timmen är slut."""
+    from utils.llm_budget import cap_message
 
-    render_varning(DAILY_CAP_MESSAGE)
+    render_varning(cap_message())
 
 
 # --- Statuspanel och sidopanel ----------------------------------------------
@@ -630,9 +690,12 @@ def render_sidebar() -> None:
     långsammare. Standardmodellen sätts i utils/llm.py.
     """
     with st.sidebar:
-        st.html('<div class="jok-section"><h2>Juridikverkstan</h2></div>')
-        st.caption("Fallbaserad träning med RNTS-metoden.")
-        st.divider()
+        # Kompakt varumärkesblock: ett block i stället för rubrik, bildtext
+        # och avdelare, så att trädet börjar högre upp i panelen.
+        st.html(
+            '<div class="jok-varumarke"><div class="namn">Juridikverkstan</div>'
+            '<div class="tagline">Fallbaserad träning med RNTS-metoden.</div></div>'
+        )
         render_sidopanel()
         st.divider()
         render_statuspanel()

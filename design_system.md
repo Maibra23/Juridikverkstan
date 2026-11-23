@@ -17,20 +17,52 @@ Definieras i .streamlit/config.toml och i en central CSS sträng i utils/css.py.
 
 Kontrastkrav: all brödtext minst 7:1 mot bakgrund, accentfärger minst 4.5:1 (WCAG AA).
 
-config.toml:
+Härledda tokens i `:root` (utils/css.py), för färger som annars skulle
+hårdkodas:
+
+| Token | Värde | Användning | Kontrast |
+|---|---|---|---|
+| `--gra` | `#6B6459` | Metadata, dämpade etiketter | 5.5:1 mot vitt |
+| `--gra-dampad` | `#736C5E` | "(kommer)"-rader i sidopanelen | minst 4.5:1 mot vitt och pergament |
+| `--guld-text` | `#8A6608` | Guld som **text**, t.ex. paragrafspann i lagkorten | minst 4.5:1 mot vitt och pergament |
+
+`--guld` (`#B8860B`) når bara cirka 3.2:1 och används därför endast för ramar,
+linjer och grafnoder, aldrig för text. `tests/test_ui.py` räknar ut kontrasten
+för alla tre texttokens och vaktar att typsnittsstackar och gråtoner bara
+deklareras i `:root`.
+
+config.toml bär paletten även för Streamlits egna komponenter, så att
+st.success, st.error, st.warning och st.info, ramar och länkar följer appens
+färger utan CSS-överskrivningar:
 ```toml
 [theme]
 primaryColor = "#2C5F8A"
 backgroundColor = "#FAF7F2"
 secondaryBackgroundColor = "#FFFFFF"
 textColor = "#1A2332"
-font = "serif"
+linkColor = "#2C5F8A"
+borderColor = "#E5E0D8"
+baseRadius = "0.5rem"
+font = "sans-serif"
+headingFont = "serif"
+codeFont = "monospace"
+greenColor = "#2E7D4F"          # samt greenBackgroundColor = "#EAF4EE"
+redColor = "#B3402A"            # samt redBackgroundColor = "#FBEDEA"
+yellowColor = "#8A6914"         # samt yellowBackgroundColor = "#FFF8E1"
+blueColor = "#2C5F8A"           # samt blueBackgroundColor = "#EAF1F7"
+
+[client]
+toolbarMode = "minimal"         # ingen Deploy-knapp i sidhuvudet
 ```
+
+`tests/test_ui.py` läser filen och vaktar typsnitten och de semantiska färgerna.
 
 ## 2. Typografi
 
 * **Rubriker**: systemserif, Georgia, "Iowan Old Style", "Times New Roman". Serif för rubriker ger den juridiska, bokliga karaktären. Inga typsnittsfiler skeppas och ingen CDN används; stackarna är rena systemstackar så att appen ser likadan ut lokalt och på Streamlit Cloud.
-* **Brödtext och UI**: system sans (Streamlits standard).
+* **UI**: knappar, etiketter, fält, flikar, tabeller och bildtexter i sans (temats `font = "sans-serif"`). Kontroller ska se ut som kontroller, inte som brödtext.
+* **Lång lästext**: scenarier, tutorsvar och begreppsfält sätts i serif direkt i CSS-mallen, eftersom de läses som en text och inte som ett gränssnitt.
+* Temats `font`, `headingFont` och `codeFont` pekar på typsnitt som följer med Streamlit, så regeln om inga typsnittsfiler och ingen CDN gäller fortfarande.
 * **Lagrum och kod**: systemmonospace, ui-monospace, "SF Mono", Menlo, Consolas. Monospace för lagrum gör dem lätta att skanna och kopiera.
 * Storlekar: brödtext 17px med radavstånd 1.65 (långläsning), rubriknivåer 28/22/18px, chips och metadata 14px.
 * Maxbredd för löptext: 46rem. Scenariotext får aldrig löpa över hela skärmbredden.
@@ -61,6 +93,10 @@ det.
 mindre än avstånd mellan grupper.** Närhet är den starkaste grupperingssignal
 som finns, och den bär struktur utan att kräva ramar.
 
+Hörnradier: `--r1` 6, `--r2` 10, `--r3` 12 (pills behåller 999px). Kort
+delar en enda skugga, `--skugga`. Typsnittsstackarna ligger i `--font-serif`,
+`--font-mono` och `--font-sans`.
+
 Skalan styr sidopanelens vertikala rytm (4.1), där den gör mest nytta: ett träd
 fyra nivåer djupt blir läsbart av avstånden ensamma. Övriga marginaler är ännu
 handsatta och konverteras när respektive komponent ändå ändras.
@@ -77,7 +113,20 @@ Alla komponenter är Pythonfunktioner som renderar st.markdown med klasser ur de
   `summary_box` är borttagna: de användes inte, och `render_kort` bar en
   ikonparameter som stred mot ikonförbudet i 4.1.
 * **render_tutortext(text, rapport)**: tutorsvar där verifierade lagrum ersatts av chips och overifierade avsnitt fått gul markering. RNTS rubrikerna i svaret renderas som små kapitäler i myndighetsblått.
-* **render_varning(text)** och **render_info(text)**: gula respektive blå informationskort, används för budgettak, stale förklaringar och disclaimer.
+* **render_varning(text)** och **render_info(text)**: gula respektive blå informationskort, används för budgettak, stale förklaringar och disclaimer. Båda tillåter **fet** och *kursiv*; resten av texten escapas.
+
+**Knappar.** Exakt en primär knapp per vy, för vyns huvudsakliga nästa steg: CTA:n på Hem, "Be tutorn granska min analys" i rättsfallsfliken, "Generera nytt rättsfall" på Kunskapsutmaning (sidans enda handling). Valfria eller upprepade handlingar är sekundära: generering i modulfliken, tutorn i quizet, "Svara", "Rätta", facitgrinden, rensknappar. Navigering görs med `st.page_link`, och sidlänkar i innehållsytan har länkfärg.
+
+**Upprepade övningsobjekt** (quizfråga, lagrumsjaktsuppgift, Kunskapstests modulrader) ligger i `st.container(border=True)` i stället för mellan avdelare; ramen ärver temats `borderColor` och `baseRadius`.
+
+**Återkoppling och notiser.** En sorts komponent per behov, så att samma sak alltid ser likadan ut:
+
+| Behov | Komponent |
+|---|---|
+| Omedelbart rättningsresultat | `st.success` eller `st.error` (temafärgade via config.toml), alltid med ord, aldrig enbart färg |
+| Saknad inmatning | `st.warning` |
+| Förklarande eller bestående notis, tomlägen | `render_info` |
+| Risk, overifierade lagrum, tak | `render_varning` |
 * **render_statuspanel()**: sidopanelens LLM status som en rad. I normalläget står det bara att tutorn är tillgänglig. Raden utökas först när något faktiskt är begränsat, och säger då olika saker: är tutorn otillgänglig namnger den vad som ändå fungerar utan den, och återstår mindre än en fjärdedel av något tak visar den anrop kvar i sessionen och i dag. Modellnamnet visas bara i det utökade läget.
 * **render_quizfraga(fraga)**: ännu inte byggd. Quizfrågan ritas i dag direkt i
   `utils/modulvy.py` med fet markdown och en radio. Komponenten ligger i etapp 2.
@@ -85,9 +134,11 @@ Alla komponenter är Pythonfunktioner som renderar st.markdown med klasser ur de
 ## 4. Layout och navigering
 
 * **Innehållskolumnen**: appen kör `layout="wide"` och huvudkolumnen begränsas **inte** i CSS. En centrerad kolumn på 46 rem prövades 2026-08-07 och valdes bort: den gjorde varje sida smal, inte bara löptexten, och Rättskartan och Kunskapskartan behövde undantag för att deras grafer inte skulle klämmas ihop. 46 rem-regeln i avsnitt 2 gäller därför appens egna innehållsblock (`.jok-*`), som sätter sin egen maxbredd. Följden att Streamlits egna widgets (captions, knappar, flikar) saknar breddtak är accepterad.
-* **Startsidan**: hjältesektion med kursnamn och en mening om metoden, disclaimer, en enda call-to-action-knapp (pekar på nästa ej påbörjade ovningsmodul i kursordning, med en rad som säger varför; först när alla övningsmoduler är påbörjade faller den tillbaka på senast besökta modul) och en framstegssektion (påbörjade moduler, genomförda rättsfall, quizresultat, en rad om att sessionen är flyktig, exportknappar). Ingen modullista: sidopanelen är appens enda navigering, så startsidan visar var du är i appen i stället för att upprepa vad som redan finns i den. Disclaimer i sidfoten.
+* **Startsidan**: hjältesektion med kursnamn och en mening om metoden, disclaimer, en enda call-to-action-knapp (pekar på nästa ej påbörjade ovningsmodul i kursordning, med en rad som säger varför; först när alla övningsmoduler är påbörjade faller den tillbaka på senast besökta modul) och en framstegssektion (påbörjade moduler, genomförda rättsfall och quizresultat som tre tal med etikett via `stat_rad`, en rad om att sessionen är flyktig, exportknappar). Under disclaimern en lugn textrad med RNTS-metodens fyra steg (`pipeline_steps`), ren text utan ram så att den inte misstas för navigering. Ingen modullista: sidopanelen är appens enda navigering, så startsidan visar var du är i appen i stället för att upprepa vad som redan finns i den. Disclaimer i sidfoten.
 * **Modulsida**: tre flikar i fast ordning: Rättsfall, Quiz, Lagrumsjakt. Samma struktur i alla moduler så att navigationen blir automatisk.
-* **Case vyn**: två kolumner på bred skärm: vänster scenariokortet (sticky känsla, alltid läsbart), höger RNTS formuläret med steppern. Knappordning alltid: primär "Be tutorn granska min analys", sekundär "Jag har försökt, visa facit" bakom en upplåsningsgrind, facit visas först efter klick, inte i en alltid synlig expander.
+* **Case vyn**: fallet först. Ordningen i rättsfallsfliken är: TRÄNAR-raden, "Välj rättsfall", en ram "Nytt fiktivt rättsfall" med svårighetsgrad och en sekundär genereringsknapp ("Visa appens rättsfall" visas där bara när ett genererat fall är aktivt), sedan två kolumner på bred skärm: vänster scenariokortet, höger en vågrät stepper ovanför RNTS-fälten. Kolumnerna staplas i samma ordning på smal skärm. Scenariokortets metadatarad säger alltid källan: "Appens rättsfall" eller "Genererat rättsfall, lagrum kontrollerade mot registret". Knappordning: primär "Be tutorn granska min analys" (flikens enda primära knapp), sekundär "Jag har försökt, visa facit" bakom en upplåsningsgrind; facit visas först efter klick, inte i en alltid synlig expander. En sticky fallkolumn är uppskjuten: den kräver CSS på Streamlits interna kolumnelement.
+* **Modulsidans rubrikrad**: raden ovanför titeln visar modulens plats i rättssystemet ("CIVILRÄTT / FÖRMÖGENHETSRÄTT / KONTRAKTSRÄTT"), härledd ur navigeringsträdet, i stället för att upprepa titeln.
+* **Kunskapstest**: ett nav, inte en lista. En ram per modul med quizfrågor i appens ordning: länk till modulen, "x av y besvarade", andel rätt och en framstegsstapel. Listan visas även i tomläget, så att sidan aldrig är en återvändsgränd.
 * **Sidopanel**: modulnavigering överst, en rad LLM-status nederst. Statusraden
   utökas med detaljer först när något faktiskt är begränsat (under en fjärdedel
   av ett tak återstår, eller tutorn är otillgänglig): driftinformation ska inte

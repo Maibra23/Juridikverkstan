@@ -35,6 +35,7 @@ from utils.prompts import LAS_FORDJUPNING, LAS_OVNING, build_begrepp_prompt
 from utils.rattskarta import delomraden, delomraden_med_vag, falltypsguide
 from utils.rattssystem_graf import bygg_taxonomigraf, gren_id
 from utils.taxonomi_ui import render_farglegend, render_taxonomigraf
+from utils.texter import kedja_etikett
 from utils.tutor import tutorknapp
 from utils.ui import (
     footer_note,
@@ -101,24 +102,26 @@ flik_system, flik_falltyp, flik_begrepp = st.tabs(
 with flik_system:
     st.html(section_heading("ÖVERSIKT", "Rättssystemets indelning"))
     st.markdown(
-        "Svensk rätt delas i **offentlig rätt** (mellan enskild och det "
-        "allmänna, däribland straffrätten och processrätten) och **civilrätt** "
-        "(mellan enskilda). Civilrätten delas i sin tur i förmögenhetsrätt "
-        "(obligationsrätt och sakrätt), familjerätt, associationsrätt och "
-        "fastighetsrätt. Grafen följer den doktrinära systematiken."
+        "Svensk rätt delas i **offentlig rätt**, mellan enskild och det allmänna "
+        "(däribland straffrätten och processrätten), och **civilrätt**, mellan "
+        "enskilda. Civilrätten delas i förmögenhetsrätt (obligationsrätt och "
+        "sakrätt), familjerätt, associationsrätt och fastighetsrätt, och grafen "
+        "följer den doktrinära systematiken."
     )
 
-    visa_referens = st.checkbox(
+    # Kartans två reglage på en rad, så att grafen börjar högre upp.
+    reglage = st.container(horizontal=True, vertical_alignment="bottom")
+    visa_referens = reglage.checkbox(
         "Visa även referenslagar (hela svensk rätt i överblick)",
         value=True,
         help=(
             "Referenslagar är klickbara översiktsnoder utanför appens urval, t.ex. "
             "grundlagarna, förvaltningsrätten och skatterätten samt EU-rätten. "
-            "Avmarkera för en ren kurskarta med bara de lagar appen rättar mot."
+            "Avmarkera för en karta med bara de lagar appen rättar mot."
         ),
     )
 
-    vy = st.radio(
+    vy = reglage.radio(
         "Kartans vy",
         options=(VY_TRAD, VY_KRAFT),
         horizontal=True,
@@ -155,7 +158,7 @@ with flik_system:
         lagar = lov.lagar
         if not visa_referens:
             lagar = tuple(lag for lag in lagar if not lag.ar_referens)
-        etikett = ": ".join((*vag, lov.namn))
+        etikett = kedja_etikett((*vag, lov.namn))
         with st.expander(etikett, expanded=False):
             st.markdown(lov.beskrivning)
             if lov.nar:
@@ -203,7 +206,9 @@ with flik_falltyp:
         "\"fel\" eller \"arv\". Fler än en lag kan vara tillämplig samtidigt."
     )
 
-    fras = st.text_input(
+    # Sökrutan och dess rensknapp på samma rad.
+    sokrad = st.container(horizontal=True, vertical_alignment="bottom")
+    fras = sokrad.text_input(
         "Sök situation eller lag",
         key="falltyp_sok",
         placeholder="T.ex. uppsagd, fastighet, konkurs, testamente",
@@ -213,7 +218,7 @@ with flik_falltyp:
 
     # Rensar bara den här flikens sökruta. Kartans vy återställs i grafen,
     # med knappen i dess övre högra hörn.
-    if st.button("Rensa sökningen", help="Töm sökrutan ovan."):
+    if sokrad.button("Rensa sökningen", help="Töm sökrutan."):
         st.session_state.pop("falltyp_sok", None)
         st.rerun()
 
@@ -343,26 +348,25 @@ with flik_begrepp:
     # Namnkarta delområdes-id -> visningsnamn för rubrikerna.
     omradesnamn = {lov.id: lov.namn for lov in delomraden()}
 
-    kol_sok, kol_omrade = st.columns([2, 2])
-    with kol_sok:
-        sokfras = st.text_input(
-            "Sök begrepp",
-            key="begrepp_sok",
-            placeholder="T.ex. uppsåt, fullmakt, bodelning",
-            help="Söker i term, definition, signalord och lagrum.",
-        )
-    with kol_omrade:
-        omraden = ["Alla områden"] + [
-            omradesnamn.get(oid, oid) for oid in per_omrade
-        ]
-        valt_omrade = st.selectbox(
-            "Rättsområde",
-            options=omraden,
-            key="begrepp_omrade",
-            help="Begränsa till ett delområde.",
-        )
+    # Sökruta, områdesfilter och rensknapp på samma rad.
+    filterrad = st.container(horizontal=True, vertical_alignment="bottom")
+    sokfras = filterrad.text_input(
+        "Sök begrepp",
+        key="begrepp_sok",
+        placeholder="T.ex. uppsåt, fullmakt, bodelning",
+        help="Söker i term, definition, signalord och lagrum.",
+    )
+    omraden = ["Alla områden"] + [
+        omradesnamn.get(oid, oid) for oid in per_omrade
+    ]
+    valt_omrade = filterrad.selectbox(
+        "Rättsområde",
+        options=omraden,
+        key="begrepp_omrade",
+        help="Begränsa till ett delområde.",
+    )
 
-    if st.button("Rensa filtren", help="Töm sökrutan och områdesfiltret."):
+    if filterrad.button("Rensa filtren", help="Töm sökrutan och områdesfiltret."):
         for _nyckel in ("begrepp_sok", "begrepp_omrade"):
             st.session_state.pop(_nyckel, None)
         st.rerun()
@@ -395,7 +399,7 @@ with flik_begrepp:
                 continue
 
             namn_for = {x.id: x.term for x in alla_begrepp}
-            etikett = f"{namn}: {len(i_omrade)} begrepp"
+            etikett = f"{namn} ({len(i_omrade)} begrepp)"
             with st.expander(etikett, expanded=filtrerar):
                 for b in i_omrade:
                     _rendera_begrepp(b, namn_for)

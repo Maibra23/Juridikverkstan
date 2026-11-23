@@ -47,6 +47,7 @@ from utils.svarighetsgrad import STANDARDNIVA
 from utils.svarighetsgrad import normalisera as normalisera_svarighet
 
 MAX_FORSOK = 3
+GENERATOR_MAX_TOKENS = 2500
 
 LLM_EJ_TILLGANGLIG_NOTIS = (
     "LLM är inte tillgänglig just nu. Här är ett kuraterat rättsfall i stället."
@@ -179,7 +180,9 @@ class _BudgeteradKlient:
     def chat(self, system_prompt: str, user_prompt: str) -> str:
         from utils.llm import cached_chat
 
-        return cached_chat(system_prompt, user_prompt)
+        # Ett helt fall i JSON med ordagranna lagcitat: de längsta i
+        # data/scenarier är runt 1 000 tokens.
+        return cached_chat(system_prompt, user_prompt, max_new_tokens=GENERATOR_MAX_TOKENS)
 
 
 def _standardklient() -> ChatKlient | None:

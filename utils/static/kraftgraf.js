@@ -189,7 +189,7 @@
   const GRUPPNAMN = {
     rot: "Rot",
     gren: "Rättsområde",
-    lag: "Kurslag",
+    lag: "Lag i appens register",
     referenslag: "Referenslag (utanför appens urval)",
   };
 

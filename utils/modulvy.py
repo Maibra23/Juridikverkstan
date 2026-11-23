@@ -29,8 +29,9 @@ from utils.lagrum import (
     lagen_nu_url,
     validera_lagrum,
 )
+from utils.navigation import rubrikkedja
 from utils.obsidian import registrera_case_analys
-from utils.prompts import build_case_prompt, build_quiz_prompt
+from utils.prompts import MAX_TECKEN_PER_FALT, build_case_prompt, build_quiz_prompt
 from utils.quiz import (
     modulresultat,
     ratta_flervalsfraga,
@@ -46,6 +47,7 @@ from utils.scenarier import (
     ladda_modul,
 )
 from utils.svarighetsgrad import STANDARDNIVA, SVARIGHETSNIVAER, etikett_for
+from utils.texter import kedja_etikett
 from utils.tutor import tutorknapp
 from utils.ui import (
     RNTS_STATUS_BEHOVER_MER,
@@ -55,6 +57,7 @@ from utils.ui import (
     footer_note,
     hero,
     render_case,
+    render_info,
     render_lagrum_chip,
     render_rnts_steg,
     render_tranar,
@@ -106,7 +109,7 @@ def rendera_modulsida(filnamn: str, titel: str, undertitel: str = "") -> None:
     ``titel``/``undertitel`` visas i sidhuvudet. CSS och sidopanel injiceras
     centralt av streamlit_app.py och upprepas inte här.
     """
-    eyebrow = undertitel or "MODUL"
+    eyebrow = _modul_eyebrow(titel, undertitel)
     try:
         modul = ladda_modul(filnamn)
     except Exception as exc:  # noqa: BLE001 (vi vill visa ett vänligt fel i UI:t)
@@ -136,6 +139,22 @@ def rendera_modulsida(filnamn: str, titel: str, undertitel: str = "") -> None:
         _rendera_lagrumsjakt(modul)
 
     st.html(footer_note())
+
+
+def _modul_eyebrow(titel: str, undertitel: str = "") -> str:
+    """Rubrikraden ovanför modulens titel: var modulen sitter i rättssystemet.
+
+    "CIVILRÄTT / FÖRMÖGENHETSRÄTT / KONTRAKTSRÄTT" ovanför "Avtalsrätt" säger
+    mer än "AVTALSRÄTT" ovanför "Avtalsrätt". Kedjan härleds ur
+    navigeringsträdet. Ett sista led som bara upprepar titeln (Personrätt är
+    både grupp och modul) tas bort. Okänd titel ger undertiteln som förut.
+    """
+    kedja = list(rubrikkedja(titel))
+    if kedja and kedja[-1].casefold() == titel.casefold():
+        kedja.pop()
+    if not kedja:
+        return undertitel or "MODUL"
+    return kedja_etikett([d.upper() for d in kedja])
 
 
 def _ingress(modul: Modulscenarier) -> str:
@@ -169,7 +188,7 @@ def _rendera_rattsfall(filnamn: str, modul: Modulscenarier) -> None:
     vore obrukbart.
     """
     if not modul.case:
-        st.info("Inga rättsfall i den här modulen ännu.")
+        render_info("Inga rättsfall i den här modulen ännu.")
         return
 
     st.html(render_tranar(tranar_etikett("rattsfall")))
@@ -179,25 +198,29 @@ def _rendera_rattsfall(filnamn: str, modul: Modulscenarier) -> None:
     n_kalla = f"gen_kalla_{filnamn}"
     n_raknare = f"gen_raknare_{filnamn}"
 
-    niva = svarighetsvaljare(f"gen_niva_{filnamn}")
+    # Fallet först, generatorn sedan (design_system.md 4, Case-vyn): appens
+    # kuraterade fall är standardinnehållet och väljs överst. Platsen för
+    # väljaren reserveras här men fylls först när knapparna nedan har hanterats,
+    # så att ett klick på "Visa appens rättsfall" eller "Generera" syns direkt.
+    valjarplats = st.container()
 
-    kol_ny, kol_kuraterat = st.columns(2)
-    with kol_ny:
-        generera = st.button(
-            "Generera nytt rättsfall",
-            key=f"gen_knapp_{filnamn}",
-            type="primary",
-            width="stretch",
-            help="Skapar ett nytt, fiktivt fall inom modulens rättsområde. "
-            "Varje lagrum i facit kontrolleras mot appens lagrumsregister.",
-        )
-    with kol_kuraterat:
-        tillbaka = st.button(
-            "Visa appens rättsfall",
-            key=f"kur_knapp_{filnamn}",
-            width="stretch",
-            disabled=n_case not in st.session_state,
-        )
+    hade_genererat = n_case in st.session_state
+    with st.container(border=True):
+        st.caption("Nytt fiktivt rättsfall")
+        with st.container(horizontal=True, vertical_alignment="bottom"):
+            niva = svarighetsvaljare(f"gen_niva_{filnamn}")
+            generera = st.button(
+                "Generera nytt rättsfall",
+                key=f"gen_knapp_{filnamn}",
+                help="Skapar ett nytt, fiktivt fall inom modulens rättsområde. "
+                "Varje lagrum i facit kontrolleras mot appens lagrumsregister.",
+            )
+            # Knappen visas bara när det finns något att gå tillbaka från,
+            # i stället för att stå inaktiv i normalfallet.
+            tillbaka = hade_genererat and st.button(
+                "Visa appens rättsfall",
+                key=f"kur_knapp_{filnamn}",
+            )
 
     if tillbaka:
         for nyckel in (n_case, n_notis, n_kalla):
@@ -214,6 +237,10 @@ def _rendera_rattsfall(filnamn: str, modul: Modulscenarier) -> None:
         )
         st.session_state[n_kalla] = resultat.kalla
         st.session_state[n_notis] = resultat.notis
+        # Kontrollerna ovan ritades innan fallet fanns. En omkörning ritar
+        # om dem med "Visa appens rättsfall" på plats. Fallet ligger i
+        # sessionen, så omkörningen genererar inget nytt.
+        st.rerun()
 
     genererat = st.session_state.get(n_case)
     if genererat is not None:
@@ -225,42 +252,72 @@ def _rendera_rattsfall(filnamn: str, modul: Modulscenarier) -> None:
                 "Nytt rättsfall genererat och grundat mot appens lagrum. "
                 "Skriv din RNTS-analys och be tutorn granska den."
             )
-        rendera_case_ovning(modul.modul, genererat)
+        rendera_case_ovning(
+            modul.modul, genererat, kalla=st.session_state.get(n_kalla, "")
+        )
         return
 
     rubriker = [c.rubrik for c in modul.case]
-    val = st.selectbox("Välj rättsfall", options=rubriker, key=f"case_val_{modul.modul}")
+    with valjarplats:
+        val = st.selectbox(
+            "Välj rättsfall", options=rubriker, key=f"case_val_{modul.modul}"
+        )
     case = next(c for c in modul.case if c.rubrik == val)
 
-    rendera_case_ovning(modul.modul, case)
+    rendera_case_ovning(modul.modul, case, kalla=KALLA_KURATERAD)
 
 
-def rendera_case_ovning(modul: str, case: Case) -> None:
+KALLA_KURATERAD = "kuraterad"
+KALLA_GENERERAD = "genererad"  # samma värde som utils.generator sätter
+
+
+def kalla_text(kalla: str) -> str:
+    """Källraden på scenariokortet för ett fall med källan ``kalla``.
+
+    Bara ett fall som generatorn faktiskt skapat och grundat kallas genererat.
+    Generatorns reservfall ("fallback") är ett av appens egna fall och märks
+    som ett sådant. Tom källa ger ingen rad.
+    """
+    if not kalla:
+        return ""
+    if kalla == KALLA_GENERERAD:
+        return "Genererat rättsfall, lagrum kontrollerade mot registret"
+    return "Appens rättsfall"
+
+
+def rendera_case_ovning(modul: str, case: Case, kalla: str = "") -> None:
     """Rendera ett rättsfall som RNTS-övning: kort, formulär, tutor och facit.
 
     Delas av modulsidorna och Kunskapsutmaningen (utils.generator) så att både
     kuraterade och genererade fall får exakt samma flöde och verifiering.
     ``modul`` är modulens visningsnamn (används för framsteg och Obsidianexport).
+    ``kalla`` är fallets källa (se kalla_text) och visas på scenariokortet.
     """
-    st.html(
-        render_case(
-            rubrik=case.rubrik,
-            # etikett_for, inte det råa fältet: kuraterad data bär den äldre
-            # stavningen "svar", och den ska inte visas för studenten.
-            metadata=(
-                f"Svårighetsgrad: {etikett_for(case.svarighetsgrad)}: "
-                f"ca {case.uppskattad_tid_min} min"
-            ),
-            scenariotext=case.scenariotext,
+    # Två kolumner på bred skärm: fallet till vänster, steppern och fälten
+    # till höger, så att studenten ser faktan medan hen skriver. Streamlit
+    # staplar kolumnerna i samma ordning på smal skärm.
+    kol_fall, kol_analys = st.columns([5, 6], gap="large")
+    with kol_fall:
+        st.html(
+            render_case(
+                rubrik=case.rubrik,
+                # etikett_for, inte det råa fältet: kuraterad data bär den äldre
+                # stavningen "svar", och den ska inte visas för studenten.
+                metadata=(
+                    f"Svårighetsgrad {etikett_for(case.svarighetsgrad)}, "
+                    f"cirka {case.uppskattad_tid_min} minuter"
+                ),
+                scenariotext=case.scenariotext,
+                kalla=kalla_text(kalla),
+            )
         )
-    )
-
-    # Stepper till vänster om formuläret på bred skärm (design_system.md 4).
-    kol_stepper, kol_formular = st.columns([1, 3])
-    with kol_formular:
+    with kol_analys:
+        # Steppern står ovanför fälten men beror på deras innehåll, så platsen
+        # reserveras först och fylls när fälten är ritade.
+        stegplats = st.container()
         svar = _rnts_formular(case)
-    with kol_stepper:
-        st.html(render_rnts_steg(_rnts_statusar(svar)))
+        with stegplats:
+            st.html(render_rnts_steg(_rnts_statusar(svar), vagrat=True))
 
     # Ett rättsfall räknas som genomfört när hela RNTS-analysen är ifylld
     # (deterministiskt, ingen LLM krävs). Läses av framstegsvyn och exporten.
@@ -280,6 +337,7 @@ def rendera_case_ovning(modul: str, case: Case) -> None:
         etikett="Be tutorn granska min analys",
         underlag=tuple(case.facit.lagrum),
         reservhanvisning="Tryck på **Jag har försökt, visa facit** nedan så länge.",
+        rubriker=RNTS_STEG,
     )
 
     # Facit efter försök, inte före: en jämförelse är bara lärorik om studenten
@@ -298,6 +356,7 @@ def _rnts_formular(case: Case) -> dict[str, str]:
             key=f"rnts_{case.id}_{nyckel}",
             placeholder=hjalp,
             height=90,
+            max_chars=MAX_TECKEN_PER_FALT,
         )
         svar[nyckel] = varde
         if nyckel == "norm":
@@ -392,18 +451,30 @@ def _rendera_facit(case: Case) -> None:
 
 def _rendera_quiz(modul: Modulscenarier) -> None:
     if not modul.flervalsfragor:
-        st.info("Inga quizfrågor i den här modulen ännu.")
+        render_info("Inga quizfrågor i den här modulen ännu.")
         return
 
     st.html(render_tranar(tranar_etikett("quiz")))
 
-    ratt, besvarade = modulresultat(modul.modul)
-    st.markdown(f"**Resultat:** {ratt} rätt av {besvarade} besvarade.")
-    st.divider()
+    # Framstegsraden står överst men räknas först efter frågorna, så att ett
+    # svar som registreras i den här körningen syns direkt. Den visas först
+    # när något är besvarat: "0 rätt av 0" före första svaret säger ingenting.
+    framstegsplats = st.container()
 
+    # Varje fråga i en egen ram i stället för avdelare mellan frågorna.
     for i, fraga in enumerate(modul.flervalsfragor, 1):
-        _rendera_quizfraga(modul.modul, i, fraga)
-        st.divider()
+        with st.container(border=True):
+            _rendera_quizfraga(modul.modul, i, fraga)
+
+    ratt, besvarade = modulresultat(modul.modul)
+    if besvarade:
+        with framstegsplats:
+            st.markdown(quizframsteg(ratt, besvarade, len(modul.flervalsfragor)))
+
+
+def quizframsteg(ratt: int, besvarade: int, antal: int) -> str:
+    """Quizflikens framstegsrad: "3 av 8 besvarade, 2 rätt"."""
+    return f"{besvarade} av {antal} besvarade, {ratt} rätt"
 
 
 def _rendera_quizfraga(modul: str, nr: int, fraga: Flervalsfraga) -> None:
@@ -431,7 +502,7 @@ def _rendera_quizfraga(modul: str, nr: int, fraga: Flervalsfraga) -> None:
         res = ratta_flervalsfraga(fraga, valt)
         alt = fraga.alternativ[valt]
         if res.korrekt:
-            st.success(f"Rätt! {res.forklaring}")
+            st.success(f"Rätt svar. {res.forklaring}")
         else:
             ratt_text = fraga.alternativ[res.ratt_index].text
             st.error(f"Inte riktigt. {res.forklaring}")
@@ -453,6 +524,7 @@ def _rendera_quizfraga(modul: str, nr: int, fraga: Flervalsfraga) -> None:
             knappnyckel=f"quiz_forklara_{modul}_{fraga.id}",
             underlag=underlag,
             reservhanvisning="Förklaringen till rätt svar står ovan.",
+            primar=False,
         )
 
 
@@ -461,20 +533,23 @@ def _rendera_quizfraga(modul: str, nr: int, fraga: Flervalsfraga) -> None:
 
 def _rendera_lagrumsjakt(modul: Modulscenarier) -> None:
     if not modul.lagrumsjakt:
-        st.info("Ingen lagrumsjakt i den här modulen ännu.")
+        render_info("Ingen lagrumsjakt i den här modulen ännu.")
         return
 
     st.html(render_tranar(tranar_etikett("lagrumsjakt")))
 
     st.caption(
-        "Skriv vilket lagrum situationen handlar om. Rättningen är deterministisk "
-        "och kräver ingen tutor. Du behöver inte §-tecknet. "
-        "\"3 paragrafen skuldebrevslagen\" fungerar lika bra som \"3 § SkbrL\". "
-        "(§ ligger oftast på tangenten till vänster om 1.)"
+        "Skriv vilket lagrum situationen handlar om. Rättningen kräver ingen tutor."
     )
+    st.caption(
+        "Paragraftecknet behövs inte: \"3 paragrafen skuldebrevslagen\" fungerar "
+        "lika bra som \"3 § SkbrL\"."
+    )
+    # Varje uppgift i en egen ram, så att situation, svar och rättning läses
+    # som en enhet.
     for i, jakt in enumerate(modul.lagrumsjakt, 1):
-        _rendera_jaktfraga(modul.modul, i, jakt)
-        st.divider()
+        with st.container(border=True):
+            _rendera_jaktfraga(modul.modul, i, jakt)
 
 
 def _jakt_ratta_nyckel(modul: str, jakt_id: str) -> str:

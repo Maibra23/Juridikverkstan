@@ -752,3 +752,448 @@ def test_ingen_global_breddgrans_pa_huvudkolumnen():
     assert "stMainBlockContainer" not in css, (
         "En global breddgräns på huvudkolumnen är medvetet bortvald"
     )
+
+
+# --- Temat i .streamlit/config.toml (design_system.md 1 och 2) -----------------
+
+
+def _tema() -> dict:
+    import pathlib
+
+    import tomllib
+
+    rot = pathlib.Path(__file__).resolve().parent.parent
+    with open(rot / ".streamlit" / "config.toml", "rb") as fil:
+        return tomllib.load(fil)
+
+
+def test_temat_satter_sans_for_ui_och_serif_for_rubriker():
+    """UI i sans, rubriker i serif, kod och lagrum i monospace.
+
+    Temat satte tidigare font = "serif", så varje knapp, flik och etikett
+    renderades i serif i strid med design_system.md avsnitt 2. Testet ser
+    till att det felet inte kan komma tillbaka obemärkt.
+    """
+    tema = _tema()["theme"]
+    assert tema["font"] == "sans-serif"
+    assert tema["headingFont"] == "serif"
+    assert tema["codeFont"] == "monospace"
+
+
+def test_temats_semantiska_farger_foljer_paletten():
+    """st.success, st.error och st.info ska använda appens färger."""
+    from utils import ui
+
+    tema = _tema()["theme"]
+    assert tema["greenColor"] == ui.GREEN
+    assert tema["redColor"] == ui.ERROR
+    assert tema["blueColor"] == ui.BLUE
+    assert tema["primaryColor"] == ui.BLUE
+
+
+def test_utvecklarverktygen_doljs():
+    """Deploy-knappen och liknande utvecklarverktyg hör inte hemma i appen."""
+    assert _tema()["client"]["toolbarMode"] == "minimal"
+
+
+# --- Tokens och kontrast (design_system.md 1 och 2) ---------------------------
+
+
+def _relativ_luminans(hex_farg: str) -> float:
+    """Relativ luminans enligt WCAG 2.1."""
+    kanaler = [int(hex_farg.lstrip("#")[i : i + 2], 16) / 255 for i in (0, 2, 4)]
+    linjara = [
+        k / 12.92 if k <= 0.04045 else ((k + 0.055) / 1.055) ** 2.4 for k in kanaler
+    ]
+    return 0.2126 * linjara[0] + 0.7152 * linjara[1] + 0.0722 * linjara[2]
+
+
+def _kontrast(forgrund: str, bakgrund: str) -> float:
+    ljus, mork = sorted(
+        (_relativ_luminans(forgrund), _relativ_luminans(bakgrund)), reverse=True
+    )
+    return (ljus + 0.05) / (mork + 0.05)
+
+
+def _token(namn: str) -> str:
+    traff = re.search(rf"--{namn}:\s*(#[0-9A-Fa-f]{{6}})", utils.css.CSS_MALL)
+    assert traff, f"Token --{namn} saknas i :root"
+    return traff.group(1)
+
+
+@pytest.mark.parametrize("token", ["guld-text", "gra", "gra-dampad"])
+@pytest.mark.parametrize("bakgrund", ["#FFFFFF", "#FAF7F2"])
+def test_texttokens_klarar_wcag_aa(token, bakgrund):
+    """Text i 13px ska nå minst 4.5:1 mot både kort och pergament."""
+    assert _kontrast(_token(token), bakgrund) >= 4.5
+
+
+def test_guld_som_text_anvander_textguld():
+    """Paragrafspannen i lagkorten är text, så de ska använda --guld-text."""
+    traff = re.search(r"\.avsnittsrad \.spann \{\{([^}]*)\}\}", utils.css.CSS_MALL)
+    assert traff and "var(--guld-text)" in traff.group(1)
+
+
+def test_kommer_raderna_anvander_dampad_token():
+    traff = re.search(r"\.jok-nav-kommer \{\{([^}]*)\}\}", utils.css.CSS_MALL)
+    assert traff and "var(--gra-dampad)" in traff.group(1)
+
+
+def test_typsnittsstackar_finns_bara_i_root():
+    """Stackarna deklareras en gång i :root och används via tokens."""
+    _, efter_root = utils.css.CSS_MALL.split("--skugga:", 1)
+    for literal in ("Georgia", "ui-monospace", "#6B6459", "#9A9384"):
+        assert literal not in efter_root, f"{literal} ska ersättas av en token"
+
+
+# --- Fetstil i notiser (render_info och render_varning) ------------------------
+
+
+def test_notis_omvandlar_fetstil_utan_asterisker():
+    from utils.ui import _notis_html
+
+    ut = _notis_html("Tryck på **Jag har försökt, visa facit** nedan så länge.")
+    assert "<strong>Jag har försökt, visa facit</strong>" in ut
+    assert "*" not in ut
+
+
+def test_notis_omvandlar_kursiv():
+    from utils.ui import _notis_html
+
+    assert _notis_html("ett *ord* här") == "ett <em>ord</em> här"
+
+
+def test_notis_escapar_html_i_indata():
+    from utils.ui import _notis_html
+
+    ut = _notis_html("<script>alert(1)</script> **fet**")
+    assert "<script>" not in ut
+    assert "&lt;script&gt;" in ut
+    assert "<strong>fet</strong>" in ut
+
+
+def test_notis_lamnar_vanlig_text_orord():
+    from utils.ui import _notis_html
+
+    assert _notis_html("Inga rättsfall i den här modulen ännu.") == (
+        "Inga rättsfall i den här modulen ännu."
+    )
+
+
+@pytest.mark.parametrize("namn", ["render_info", "render_varning"])
+def test_notiskorten_renderar_fetstil(monkeypatch, namn):
+    from utils import ui
+
+    ritat: list[str] = []
+    monkeypatch.setattr(ui.st, "html", ritat.append)
+    getattr(ui, namn)("Klicka **Generera**.")
+    assert "<strong>Generera</strong>" in ritat[0]
+    assert "**" not in ritat[0]
+
+
+# --- Tillgänglighet: stepperns tillstånd och externa länkar --------------------
+
+
+@pytest.mark.parametrize(
+    ("status", "text"),
+    [
+        (RNTS_STATUS_EJ_PABORJAD, "ej påbörjad"),
+        (RNTS_STATUS_PAGAR, "pågår"),
+        (RNTS_STATUS_GODKAND, "godkänd"),
+        (RNTS_STATUS_BEHOVER_MER, "behöver mer"),
+    ],
+)
+def test_steppern_sager_tillstandet_i_ord(status, text):
+    """Tillståndet får inte bäras av färg och form ensamma."""
+    html = render_rnts_steg((("Norm", status),))
+    assert f'<span class="sr-only">, {text}</span>' in html
+
+
+def test_steppern_ar_en_lista_for_skarmlasare():
+    html = render_rnts_steg((("Norm", RNTS_STATUS_PAGAR),))
+    assert 'role="list"' in html and 'aria-label="RNTS-steg"' in html
+    assert 'role="listitem"' in html
+    assert 'aria-hidden="true"' in html
+
+
+def _anker(html: str) -> list[str]:
+    return re.findall(r"<a [^>]*>", html)
+
+
+def test_lagrumschip_med_lank_har_rel_och_dold_flikinfo():
+    html = render_lagrum_chip("36 § AvtL", url="https://lagen.nu/1915:218#P36")
+    for a in _anker(html):
+        assert 'rel="noopener noreferrer"' in a
+    assert "öppnas på lagen.nu i ny flik" in html
+    assert 'class="sr-only"' in html
+
+
+def test_lagkortets_alla_lankar_har_rel():
+    from utils.ui import render_lagkort
+
+    html = render_lagkort(
+        forkortning="KKöpL",
+        namn="Konsumentköplag",
+        sfs="2022:260",
+        beskrivning="B",
+        nar="N",
+        url="https://lagen.nu/2022:260",
+        lagavsnitt=(
+            _grupp("3", "Dröjsmål", "1 till 6 §§", "Påföljder",
+                   "https://lagen.nu/2022:260#K3P1"),
+        ),
+    )
+    ankare = _anker(html)
+    assert len(ankare) >= 2
+    for a in ankare:
+        assert 'target="_blank"' in a and 'rel="noopener noreferrer"' in a
+
+
+def test_css_har_sr_only_och_fokusring():
+    css = utils.css.CSS_MALL
+    assert ".sr-only {{" in css
+    assert ":focus-visible" in css
+
+
+# --- T09: rättsfallsfliken (fallet först, en primär handling, källrad) ----------
+
+
+def _rattsfall_knappar(
+    monkeypatch: pytest.MonkeyPatch,
+    session: dict,
+    klickad: str | None = None,
+) -> tuple[list[dict], list[tuple], list[str]]:
+    """Kör _rendera_rattsfall och samla knappar, case-anrop och generatoranrop.
+
+    Samma teknik som _rattsfall_html ovan. Varje knapp sparas med sin etikett
+    och sina nyckelordsargument, så att typen (primär eller sekundär) kan
+    kontrolleras. ``klickad`` är etiketten på den knapp som ska returnera True.
+    """
+    import streamlit as st
+
+    knappar: list[dict] = []
+    ovningar: list[tuple] = []
+    genereringar: list[str] = []
+
+    def _knapp(etikett, **k):
+        knappar.append({"etikett": etikett, **k})
+        return etikett == klickad
+
+    monkeypatch.setattr(st, "html", lambda s: None)
+    monkeypatch.setattr(st, "session_state", session)
+    monkeypatch.setattr(st, "segmented_control", lambda *a, **k: None)
+    monkeypatch.setattr(st, "container", lambda *a, **k: contextlib.nullcontext())
+    monkeypatch.setattr(st, "caption", lambda *a, **k: None)
+    monkeypatch.setattr(st, "success", lambda *a, **k: None)
+    monkeypatch.setattr(st, "spinner", lambda *a, **k: contextlib.nullcontext())
+    monkeypatch.setattr(st, "button", _knapp)
+    monkeypatch.setattr(st, "rerun", lambda: None)
+    monkeypatch.setattr(st, "selectbox", lambda label, options, **k: options[0])
+    monkeypatch.setattr(
+        modulvy, "rendera_case_ovning", lambda *a, **k: ovningar.append((a, k))
+    )
+
+    def _generera(filnamn, svarighetsgrad):
+        genereringar.append(filnamn)
+        from types import SimpleNamespace
+
+        return SimpleNamespace(case=_DUMMY_CASE, kalla="genererad", notis="")
+
+    monkeypatch.setattr(modulvy, "generera_case", _generera)
+    modul = Modulscenarier(modul="test", case=(_DUMMY_CASE,), flervalsfragor=(), lagrumsjakt=())
+    modulvy._rendera_rattsfall("test", modul)
+    return knappar, ovningar, genereringar
+
+
+def test_visa_appens_rattsfall_doljs_utan_genererat_fall(monkeypatch):
+    knappar, _, _ = _rattsfall_knappar(monkeypatch, {})
+    assert "Visa appens rättsfall" not in [k["etikett"] for k in knappar]
+
+
+def test_visa_appens_rattsfall_visas_med_genererat_fall(monkeypatch):
+    knappar, _, _ = _rattsfall_knappar(monkeypatch, {"gen_case_test": _DUMMY_CASE})
+    assert "Visa appens rättsfall" in [k["etikett"] for k in knappar]
+
+
+def test_generera_ar_sekundar_i_modulfliken(monkeypatch):
+    """Tutorns granskning är fliken enda primära handling."""
+    knappar, _, _ = _rattsfall_knappar(monkeypatch, {"gen_case_test": _DUMMY_CASE})
+    assert knappar
+    for knapp in knappar:
+        assert knapp.get("type", "secondary") != "primary", knapp["etikett"]
+
+
+def test_ingen_generering_utan_klick(monkeypatch):
+    """En rerun (tangenttryck i RNTS-fälten) får aldrig byta ut fallet."""
+    _, ovningar, genereringar = _rattsfall_knappar(monkeypatch, {})
+    assert genereringar == []
+    assert ovningar[0][1]["kalla"] == modulvy.KALLA_KURATERAD
+
+
+def test_klick_genererar_och_marker_fallet_som_genererat(monkeypatch):
+    session: dict = {}
+    _, ovningar, genereringar = _rattsfall_knappar(
+        monkeypatch, session, klickad="Generera nytt rättsfall"
+    )
+    assert genereringar == ["test"]
+    assert session["gen_case_test"].id == "test-gen-1"
+    assert ovningar[-1][1]["kalla"] == "genererad"
+
+
+def test_tillbaka_visar_appens_fall_direkt(monkeypatch):
+    session = {"gen_case_test": _DUMMY_CASE, "gen_kalla_test": "genererad"}
+    _, ovningar, _ = _rattsfall_knappar(
+        monkeypatch, session, klickad="Visa appens rättsfall"
+    )
+    assert "gen_case_test" not in session
+    assert ovningar[-1][1]["kalla"] == modulvy.KALLA_KURATERAD
+
+
+@pytest.mark.parametrize(
+    ("kalla", "text"),
+    [
+        ("genererad", "Genererat rättsfall, lagrum kontrollerade mot registret"),
+        ("fallback", "Appens rättsfall"),
+        ("kuraterad", "Appens rättsfall"),
+        ("", ""),
+    ],
+)
+def test_kalla_text(kalla, text):
+    assert modulvy.kalla_text(kalla) == text
+
+
+def test_scenariokortet_visar_kallan_sist_pa_metaraden():
+    html_ut = render_case(
+        rubrik="R", metadata="Svårighetsgrad Grund, cirka 10 minuter",
+        scenariotext="T", kalla="Appens rättsfall",
+    )
+    assert "Svårighetsgrad Grund, cirka 10 minuter. Appens rättsfall" in html_ut
+
+
+def test_vagrat_stepper_har_egen_klass():
+    assert 'class="jok-rnts vagrat"' in render_rnts_steg(
+        (("Norm", RNTS_STATUS_PAGAR),), vagrat=True
+    )
+
+
+# --- T10: quizfliken -----------------------------------------------------------
+
+
+def _quiz_ritat(
+    monkeypatch: pytest.MonkeyPatch, resultat: tuple[int, int], klar: bool = False
+) -> dict[str, list]:
+    """Kör _rendera_quiz med en fråga och samla markdown, success och tutoranrop."""
+    import streamlit as st
+
+    ritat: dict[str, list] = {"markdown": [], "success": [], "tutor": [], "ramar": []}
+    session = {f"quiz_klart_test_{_DUMMY_FRAGA.id}": True} if klar else {}
+    monkeypatch.setattr(st, "html", lambda s: None)
+    monkeypatch.setattr(st, "session_state", session)
+    monkeypatch.setattr(st, "markdown", lambda s, **k: ritat["markdown"].append(s))
+    monkeypatch.setattr(st, "success", lambda s, **k: ritat["success"].append(s))
+    monkeypatch.setattr(st, "error", lambda *a, **k: None)
+    monkeypatch.setattr(st, "caption", lambda *a, **k: None)
+    monkeypatch.setattr(st, "divider", lambda: ritat["ramar"].append("avdelare"))
+    monkeypatch.setattr(
+        st, "container", lambda *a, **k: ritat["ramar"].append(k) or contextlib.nullcontext()
+    )
+    monkeypatch.setattr(st, "radio", lambda *a, **k: 0 if klar else None)
+    monkeypatch.setattr(st, "button", lambda *a, **k: False)
+    monkeypatch.setattr(modulvy, "modulresultat", lambda modul: resultat)
+    monkeypatch.setattr(modulvy, "_lagrum_chip_rad", lambda *a: None)
+    monkeypatch.setattr(modulvy, "tutorknapp", lambda **k: ritat["tutor"].append(k))
+    modul = Modulscenarier(modul="test", case=(), flervalsfragor=(_DUMMY_FRAGA,), lagrumsjakt=())
+    modulvy._rendera_quiz(modul)
+    return ritat
+
+
+def test_quiz_utan_svar_visar_ingen_resultatrad(monkeypatch):
+    ritat = _quiz_ritat(monkeypatch, (0, 0))
+    assert not any("besvarade" in m for m in ritat["markdown"])
+
+
+def test_quiz_efter_svar_visar_framsteg(monkeypatch):
+    ritat = _quiz_ritat(monkeypatch, (1, 1))
+    assert "1 av 1 besvarade, 1 rätt" in ritat["markdown"]
+
+
+def test_quizfragor_ligger_i_ramar_utan_avdelare(monkeypatch):
+    ritat = _quiz_ritat(monkeypatch, (0, 0))
+    assert "avdelare" not in ritat["ramar"]
+    assert {"border": True} in ritat["ramar"]
+
+
+def test_ratt_svar_utan_utropstecken_och_sekundar_tutor(monkeypatch):
+    ritat = _quiz_ritat(monkeypatch, (1, 1), klar=True)
+    assert ritat["success"] and ritat["success"][0].startswith("Rätt svar.")
+    assert "!" not in ritat["success"][0]
+    assert ritat["tutor"][0]["primar"] is False
+
+
+def test_quizframsteg():
+    assert modulvy.quizframsteg(2, 3, 8) == "3 av 8 besvarade, 2 rätt"
+
+
+# --- T12: startsidans stat-rad och metodrad ------------------------------------
+
+
+def test_stat_rad_ritar_ett_block_per_post():
+    from utils.ui import stat_rad
+
+    html_ut = stat_rad((("3", "moduler påbörjade"), ("5 av 7", "rätt på quiz")))
+    assert html_ut.count('class="jok-stat"') == 2
+    assert '<div class="tal">5 av 7</div>' in html_ut
+
+
+def test_stat_rad_escapar():
+    from utils.ui import stat_rad
+
+    html_ut = stat_rad((("<b>1</b>", "<script>x</script>"),))
+    assert "<script>" not in html_ut and "<b>" not in html_ut
+
+
+def test_metodraden_ar_text_och_inte_lankar():
+    from utils.rnts import RNTS_STEG
+    from utils.ui import pipeline_steps
+
+    html_ut = pipeline_steps(list(RNTS_STEG))
+    assert "<a " not in html_ut and "<button" not in html_ut
+    for steg in RNTS_STEG:
+        assert steg in html_ut
+
+
+# --- T14: Rättskartans texter ----------------------------------------------------
+
+
+def test_kartans_texter_saknar_kursord_och_et_tecken():
+    """Appen undviker kursord och "&" i löptext; kartans etiketter följer det."""
+    import pathlib
+
+    import utils.kraftgraf_ui
+    import utils.taxonomi_ui
+
+    kallor = [
+        pathlib.Path(utils.taxonomi_ui.__file__).read_text(encoding="utf-8"),
+        pathlib.Path(utils.kraftgraf_ui.__file__).read_text(encoding="utf-8"),
+        (pathlib.Path(utils.taxonomi_ui.__file__).parent / "static" / "kraftgraf.js")
+        .read_text(encoding="utf-8"),
+    ]
+    for kalla in kallor:
+        assert '"Kurslag' not in kalla
+        assert "rätt & EU-rätt" not in kalla
+    assert "Internationell rätt och EU-rätt" in kallor[0]
+    assert "Lag i appens register" in kallor[0]
+
+
+# --- T15: Kunskapskartans legend -------------------------------------------------
+
+
+def test_kunskapskartans_legend_ar_fargrutor_i_grafens_farger():
+    from utils.graf_ui import _FARGER, legend_html
+
+    html_ut = legend_html()
+    assert html_ut.count('class="jok-swatch"') == len(_FARGER)
+    for f in _FARGER.values():
+        assert f["bg"] in html_ut
+    for etikett in ("Lagrum", "Rättsfall", "Modul"):
+        assert etikett in html_ut

@@ -15,7 +15,7 @@ from __future__ import annotations
 import streamlit as st
 
 from utils.graf import bygg_graf
-from utils.graf_ui import render_kunskapsgraf
+from utils.graf_ui import legend_html, render_kunskapsgraf
 from utils.obsidian import hamta_case_analyser
 from utils.texter import antal_med_enhet
 from utils.ui import (
@@ -52,8 +52,9 @@ else:
     antal_lagrum = sum(1 for n in graf["noder"] if n["grupp"] == "lagrum")
     st.caption(
         antal_med_enhet(len(analyser), "genomfört rättsfall", "genomförda rättsfall")
-        + f": {antal_lagrum} lagrum. Guld = lagrum, blå = rättsfall, mörkblå = modul."
+        + f" och {antal_lagrum} lagrum."
     )
+    st.html(legend_html())
     render_kunskapsgraf(graf)
 
 st.html(footer_note())

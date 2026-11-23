@@ -190,7 +190,7 @@ def _statistikrader(stat: Statistik) -> str:
     poster = (
         ("Noder", stat.noder),
         ("Grenar", stat.grenar),
-        ("Kurslagar", stat.registerlagar),
+        ("Lagar i registret", stat.registerlagar),
         ("Referenslagar", stat.referenslagar),
         ("Djup", stat.djup),
     )

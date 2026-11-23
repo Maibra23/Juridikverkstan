@@ -56,7 +56,7 @@ GRENFARGER: dict[str, dict[str, str]] = {
 _GRENETIKETT: dict[str, str] = {
     "offentlig_ratt": "Offentlig rätt",
     "civilratt": "Civilrätt",
-    "internationell_ratt": "Internationell rätt & EU-rätt",
+    "internationell_ratt": "Internationell rätt och EU-rätt",
 }
 
 _ROTFARG = {"bg": "#1A2332", "kant": "#0D131D", "text": "#FAF7F2"}
@@ -231,7 +231,7 @@ def farglegend_html() -> str:
         for g in ladda_rattssystem()
         if g.id in GRENFARGER
     ]
-    poster.append((_LAGFARG["bg"], "Kurslag (klicka för lagen.nu)"))
+    poster.append((_LAGFARG["bg"], "Lag i appens register (klicka för lagen.nu)"))
     poster.append((_REFERENSFARG["bg"], "Referenslag, överblick utanför appens urval"))
 
     rutor = "".join(

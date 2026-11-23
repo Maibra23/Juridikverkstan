@@ -42,13 +42,33 @@ SUPPORTED_MODELS = (DEFAULT_MODEL, ALTERNATIVE_MODEL)
 MODEL_SESSION_KEY = "llm_model"
 DEFAULT_PROVIDER = "auto"
 DEFAULT_TIMEOUT = 60
-DEFAULT_MAX_TOKENS = 4096
+# Tutorsvaren är högst 400 ord (utils.prompts.MAX_SVARSLANGD_ORD), cirka 800
+# tokens på svenska. Taket ger marginal men hindrar att ett svar som skenar
+# kostar fyra gånger så mycket. Generatorn skriver ett helt fall i JSON och
+# begär ett högre tak själv (utils.generator).
+DEFAULT_MAX_TOKENS = 1500
 DEFAULT_TEMPERATURE = 0.4
 SESSION_CALL_CAP = 40
 
 # Qwen3-modeller sänder <think>...</think>-block före själva svaret.
 # Detta mönster strippar dem så att anroparna bara ser slutsvaret.
 THINK_TAG_PATTERN = re.compile(r"<think>[\s\S]*?</think>\s*", flags=re.DOTALL)
+
+
+def _tankande_pa() -> bool:
+    """True om inställningen LLM_THINKING slår på Qwen3:s tänkande.
+
+    Av som standard: tänkandet strippas ändå ur svaret men debiteras per
+    token, och kan äta upp hela max_tokens innan svaret ens börjat.
+    """
+    return (_read_setting("LLM_THINKING", "") or "").strip().lower() in ("1", "true", "ja", "on")
+
+
+def _utan_tankande(user_prompt: str, model: str) -> str:
+    """Lägg till Qwen3:s /no_think-växel sist i användarmeddelandet."""
+    if "qwen3" not in model.lower() or "/no_think" in user_prompt or _tankande_pa():
+        return user_prompt
+    return f"{user_prompt}\n/no_think"
 
 
 def _strip_think_tags(text: str) -> str:
@@ -236,7 +256,7 @@ class LLMClient:
         """Enkelt chat-anrop. Returnerar textinnehållet."""
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
+            {"role": "user", "content": _utan_tankande(user_prompt, self.model)},
         ]
         try:
             response = self._client.chat_completion(
@@ -264,7 +284,7 @@ class LLMClient:
         """
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
+            {"role": "user", "content": _utan_tankande(user_prompt, self.model)},
         ]
         try:
             stream = self._client.chat_completion(
@@ -317,11 +337,7 @@ def cached_chat(
     Kastar LLMSessionCapError endast när ett *nytt* anrop krävs och taket
     är slut, så att svar som redan genererats i sessionen fortsätter visas.
     """
-    from utils.llm_budget import (
-        DAILY_CAP_MESSAGE,
-        get_daily_calls_remaining,
-        record_daily_call,
-    )
+    from utils.llm_budget import cap_message, get_calls_remaining, record_daily_call
 
     config = get_llm_config()
     try:
@@ -331,8 +347,8 @@ def cached_chat(
         # cache/räkning.
         if get_session_calls_remaining() <= 0:
             raise LLMSessionCapError(SESSION_CAP_MESSAGE) from None
-        if get_daily_calls_remaining() <= 0:
-            raise LLMDailyCapError(DAILY_CAP_MESSAGE) from None
+        if get_calls_remaining() <= 0:
+            raise LLMDailyCapError(cap_message()) from None
         client = LLMClient(token=config.token, model=config.model, provider=config.provider)
         result = client.chat(
             system_prompt, user_prompt, max_new_tokens=max_new_tokens, temperature=temperature
@@ -361,10 +377,10 @@ def cached_chat(
     is_new = counted is None or prompt_hash not in counted
     if is_new and get_session_calls_remaining() <= 0:
         raise LLMSessionCapError(SESSION_CAP_MESSAGE)
-    # Serverskydd: den gemensamma dagsbudgeten är oberoende av session
+    # Serverskydd: den gemensamma budgeten per dag och timme är oberoende av session
     # state, överlever omladdningar och skyddar HF-token på publika deployer.
-    if is_new and get_daily_calls_remaining() <= 0:
-        raise LLMDailyCapError(DAILY_CAP_MESSAGE)
+    if is_new and get_calls_remaining() <= 0:
+        raise LLMDailyCapError(cap_message())
 
     result = _call(
         prompt_hash, system_prompt, user_prompt, max_new_tokens, temperature, config.model

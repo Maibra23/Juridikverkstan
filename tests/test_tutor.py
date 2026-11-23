@@ -3,10 +3,13 @@
 Täcker on demand-mönstrets rena delar: hashning av inputs, upptäckt av
 inaktuell cache samt att tutortext-renderingen byter ut verifierade
 lagrum mot chips och flaggar overifierade referenser i en varningsruta.
-Streamlit-beroende delar (knappen) testas inte här utan i röktestet.
+Knappens vikt (primär eller sekundär) testas med en monkeypatchad st.button;
+övriga Streamlit-beroende delar testas i röktestet.
 """
 
 from __future__ import annotations
+
+import pytest
 
 from utils.tutor import Tutorsvar, _hash_inputs
 from utils.ui import _tutortext_html
@@ -190,3 +193,23 @@ def test_utan_underlag_stoppas_bara_pahitt(monkeypatch):
     chat, _ = _fejkklient(["Se 36 § AvtL om jämkning."])
     monkeypatch.setattr(utils.llm, "cached_chat", chat)
     assert generera_tutorsvar("t4", "sys", "user", ()).godkand
+
+
+def test_tutorns_lagrumschips_har_rel_och_dold_flikinfo():
+    html_ut, _ = _tutortext_html("Enligt 36 § AvtL kan villkoret jämkas.")
+    assert 'rel="noopener noreferrer"' in html_ut
+    assert "öppnas på lagen.nu i ny flik" in html_ut
+
+
+@pytest.mark.parametrize(("primar", "typ"), [(True, "primary"), (False, "secondary")])
+def test_tutorknappens_vikt_styrs_av_primar(monkeypatch, primar, typ):
+    import streamlit as st
+
+    from utils import tutor
+
+    knappar: list[dict] = []
+    monkeypatch.setattr(st, "button", lambda etikett, **k: knappar.append(k) or False)
+    monkeypatch.setattr(tutor, "hamta_cachat", lambda nyckel: None)
+    monkeypatch.setattr(tutor, "ar_inaktuell", lambda *a: False)
+    tutor.tutorknapp("n", "s", "u", primar=primar)
+    assert knappar[0]["type"] == typ
