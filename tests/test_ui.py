@@ -888,3 +888,67 @@ def test_notiskorten_renderar_fetstil(monkeypatch, namn):
     getattr(ui, namn)("Klicka **Generera**.")
     assert "<strong>Generera</strong>" in ritat[0]
     assert "**" not in ritat[0]
+
+
+# --- Tillgänglighet: stepperns tillstånd och externa länkar --------------------
+
+
+@pytest.mark.parametrize(
+    ("status", "text"),
+    [
+        (RNTS_STATUS_EJ_PABORJAD, "ej påbörjad"),
+        (RNTS_STATUS_PAGAR, "pågår"),
+        (RNTS_STATUS_GODKAND, "godkänd"),
+        (RNTS_STATUS_BEHOVER_MER, "behöver mer"),
+    ],
+)
+def test_steppern_sager_tillstandet_i_ord(status, text):
+    """Tillståndet får inte bäras av färg och form ensamma."""
+    html = render_rnts_steg((("Norm", status),))
+    assert f'<span class="sr-only">, {text}</span>' in html
+
+
+def test_steppern_ar_en_lista_for_skarmlasare():
+    html = render_rnts_steg((("Norm", RNTS_STATUS_PAGAR),))
+    assert 'role="list"' in html and 'aria-label="RNTS-steg"' in html
+    assert 'role="listitem"' in html
+    assert 'aria-hidden="true"' in html
+
+
+def _anker(html: str) -> list[str]:
+    return re.findall(r"<a [^>]*>", html)
+
+
+def test_lagrumschip_med_lank_har_rel_och_dold_flikinfo():
+    html = render_lagrum_chip("36 § AvtL", url="https://lagen.nu/1915:218#P36")
+    for a in _anker(html):
+        assert 'rel="noopener noreferrer"' in a
+    assert "öppnas på lagen.nu i ny flik" in html
+    assert 'class="sr-only"' in html
+
+
+def test_lagkortets_alla_lankar_har_rel():
+    from utils.ui import render_lagkort
+
+    html = render_lagkort(
+        forkortning="KKöpL",
+        namn="Konsumentköplag",
+        sfs="2022:260",
+        beskrivning="B",
+        nar="N",
+        url="https://lagen.nu/2022:260",
+        lagavsnitt=(
+            _grupp("3", "Dröjsmål", "1 till 6 §§", "Påföljder",
+                   "https://lagen.nu/2022:260#K3P1"),
+        ),
+    )
+    ankare = _anker(html)
+    assert len(ankare) >= 2
+    for a in ankare:
+        assert 'target="_blank"' in a and 'rel="noopener noreferrer"' in a
+
+
+def test_css_har_sr_only_och_fokusring():
+    css = utils.css.CSS_MALL
+    assert ".sr-only {{" in css
+    assert ":focus-visible" in css

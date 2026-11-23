@@ -105,6 +105,20 @@ _RNTS_TILLSTAND = (
     RNTS_STATUS_BEHOVER_MER,
 )
 
+# Tillståndet i ord för skärmläsare: stepperns form och färg ensamma säger
+# inget för den som inte ser dem (design_system.md 5, aldrig enbart färg).
+_RNTS_STATUSTEXT = {
+    RNTS_STATUS_EJ_PABORJAD: "ej påbörjad",
+    RNTS_STATUS_PAGAR: "pågår",
+    RNTS_STATUS_GODKAND: "godkänd",
+    RNTS_STATUS_BEHOVER_MER: "behöver mer",
+}
+
+# Externa länkar öppnas i ny flik. rel hindrar den öppnade sidan från att nå
+# appens fönster, och den dolda texten säger till skärmläsare vad som händer.
+_EXTERN_REL = ' rel="noopener noreferrer"'
+_NY_FLIK = '<span class="sr-only"> (öppnas på lagen.nu i ny flik)</span>'
+
 
 def render_rnts_steg(steg: tuple[tuple[str, str], ...]) -> str:
     """Vertikal RNTS-stepper: (etikett, status) per steg.
@@ -120,10 +134,15 @@ def render_rnts_steg(steg: tuple[tuple[str, str], ...]) -> str:
                 f"Tillåtna: {sorted(_RNTS_TILLSTAND)}"
             )
         rader.append(
-            f'<div class="steg {status}"><span class="ikon"></span>'
-            f"<span>{html.escape(etikett)}</span></div>"
+            f'<div class="steg {status}" role="listitem">'
+            '<span class="ikon" aria-hidden="true"></span>'
+            f"<span>{html.escape(etikett)}</span>"
+            f'<span class="sr-only">, {_RNTS_STATUSTEXT[status]}</span></div>'
         )
-    return f'<div class="jok-rnts">{"".join(rader)}</div>'
+    return (
+        '<div class="jok-rnts" role="list" aria-label="RNTS-steg">'
+        f'{"".join(rader)}</div>'
+    )
 
 
 def pipeline_steps(steps: list[str]) -> str:
@@ -145,7 +164,7 @@ def render_lagrum_chip(ref: str, url: str | None = None, verifierad: bool = True
     if url:
         return (
             f'<a class="{klass}" href="{html.escape(url)}" target="_blank"'
-            f'{tooltip}>{etikett}</a>'
+            f'{_EXTERN_REL}{tooltip}>{etikett}{_NY_FLIK}</a>'
         )
     return f'<span class="{klass}"{tooltip}>{etikett}</span>'
 
@@ -233,7 +252,7 @@ def _tutortext_html(text: str) -> tuple[str, tuple]:
         tooltip = f' title="{html.escape(titel)}"' if titel else ""
         chip = (
             f'<a class="jok-chip" href="{html.escape(t.url or "")}" target="_blank"'
-            f'{tooltip}>{html.escape(ra)}</a>'
+            f'{_EXTERN_REL}{tooltip}>{html.escape(ra)}{_NY_FLIK}</a>'
         )
         kropp = kropp.replace(html.escape(ra), chip)
 
@@ -341,8 +360,9 @@ def render_lagkort(
         f'<div class="nar"><strong>När övervägs den?</strong> {html.escape(nar)}</div>'
         f"{rel}"
         f"{_avsnittsblock(lagavsnitt, tackning)}"
-        f'<div class="nar"><a href="{html.escape(url)}" target="_blank">'
-        f"Öppna {html.escape(forkortning)} på lagen.nu</a></div>"
+        f'<div class="nar"><a href="{html.escape(url)}" target="_blank"{_EXTERN_REL}>'
+        f"Öppna {html.escape(forkortning)} på lagen.nu"
+        '<span class="sr-only"> (i ny flik)</span></a></div>'
         "</div>"
     )
 
@@ -380,8 +400,8 @@ def _avsnittsblock(grupper: tuple, tackning: str) -> str:
             )
             delar.append(
                 '<div class="avsnittsrad">'
-                f'<a class="spann" href="{html.escape(rad.url)}" target="_blank">'
-                f"{html.escape(rad.spann)}</a>"
+                f'<a class="spann" href="{html.escape(rad.url)}" target="_blank"'
+                f"{_EXTERN_REL}>{html.escape(rad.spann)}{_NY_FLIK}</a>"
                 f"{text}"
                 "</div>"
             )

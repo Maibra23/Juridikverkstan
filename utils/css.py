@@ -45,6 +45,17 @@ CSS_MALL = """
             --r1: 6px; --r2: 10px; --r3: 12px;
             --skugga: 0 1px 3px rgba(26,35,50,.06);
         }}
+        /* Text bara för skärmläsare, t.ex. stepperns tillstånd och att en
+           länk öppnas i ny flik. Standardmönstret för visuellt dold text. */
+        .sr-only {{
+            position: absolute; width: 1px; height: 1px; padding: 0;
+            margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0);
+            white-space: nowrap; border: 0;
+        }}
+        /* Synlig fokusring för tangentbordet på appens egna länkar. */
+        .jok-chip:focus-visible, .jok-lagkort a:focus-visible {{
+            outline: 2px solid var(--bla); outline-offset: 2px;
+        }}
         .jok-hero {{
             max-width: 46rem; margin: 0 0 1.5rem 0;
         }}

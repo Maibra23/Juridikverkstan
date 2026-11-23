@@ -190,3 +190,9 @@ def test_utan_underlag_stoppas_bara_pahitt(monkeypatch):
     chat, _ = _fejkklient(["Se 36 § AvtL om jämkning."])
     monkeypatch.setattr(utils.llm, "cached_chat", chat)
     assert generera_tutorsvar("t4", "sys", "user", ()).godkand
+
+
+def test_tutorns_lagrumschips_har_rel_och_dold_flikinfo():
+    html_ut, _ = _tutortext_html("Enligt 36 § AvtL kan villkoret jämkas.")
+    assert 'rel="noopener noreferrer"' in html_ut
+    assert "öppnas på lagen.nu i ny flik" in html_ut
