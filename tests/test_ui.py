@@ -759,6 +759,7 @@ def test_ingen_global_breddgrans_pa_huvudkolumnen():
 
 def _tema() -> dict:
     import pathlib
+
     import tomllib
 
     rot = pathlib.Path(__file__).resolve().parent.parent
