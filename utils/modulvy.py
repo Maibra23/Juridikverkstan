@@ -29,6 +29,7 @@ from utils.lagrum import (
     lagen_nu_url,
     validera_lagrum,
 )
+from utils.navigation import rubrikkedja
 from utils.obsidian import registrera_case_analys
 from utils.prompts import MAX_TECKEN_PER_FALT, build_case_prompt, build_quiz_prompt
 from utils.quiz import (
@@ -46,6 +47,7 @@ from utils.scenarier import (
     ladda_modul,
 )
 from utils.svarighetsgrad import STANDARDNIVA, SVARIGHETSNIVAER, etikett_for
+from utils.texter import kedja_etikett
 from utils.tutor import tutorknapp
 from utils.ui import (
     RNTS_STATUS_BEHOVER_MER,
@@ -106,7 +108,7 @@ def rendera_modulsida(filnamn: str, titel: str, undertitel: str = "") -> None:
     ``titel``/``undertitel`` visas i sidhuvudet. CSS och sidopanel injiceras
     centralt av streamlit_app.py och upprepas inte här.
     """
-    eyebrow = undertitel or "MODUL"
+    eyebrow = _modul_eyebrow(titel, undertitel)
     try:
         modul = ladda_modul(filnamn)
     except Exception as exc:  # noqa: BLE001 (vi vill visa ett vänligt fel i UI:t)
@@ -136,6 +138,22 @@ def rendera_modulsida(filnamn: str, titel: str, undertitel: str = "") -> None:
         _rendera_lagrumsjakt(modul)
 
     st.html(footer_note())
+
+
+def _modul_eyebrow(titel: str, undertitel: str = "") -> str:
+    """Rubrikraden ovanför modulens titel: var modulen sitter i rättssystemet.
+
+    "CIVILRÄTT / FÖRMÖGENHETSRÄTT / KONTRAKTSRÄTT" ovanför "Avtalsrätt" säger
+    mer än "AVTALSRÄTT" ovanför "Avtalsrätt". Kedjan härleds ur
+    navigeringsträdet. Ett sista led som bara upprepar titeln (Personrätt är
+    både grupp och modul) tas bort. Okänd titel ger undertiteln som förut.
+    """
+    kedja = list(rubrikkedja(titel))
+    if kedja and kedja[-1].casefold() == titel.casefold():
+        kedja.pop()
+    if not kedja:
+        return undertitel or "MODUL"
+    return kedja_etikett([d.upper() for d in kedja])
 
 
 def _ingress(modul: Modulscenarier) -> str:
