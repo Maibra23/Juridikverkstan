@@ -26,7 +26,7 @@ st.set_page_config(
     page_title="Juridikverkstan",
     page_icon="⚖️",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
     menu_items={"Get Help": None, "Report a bug": None},
 )
 

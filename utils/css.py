@@ -79,6 +79,7 @@ CSS_MALL = """
             border-left: 3px solid var(--bla); border-radius: 10px;
             padding: .9rem 1.2rem; margin: .6rem 0; max-width: 46rem;
             font-size: var(--t-brod); line-height: 1.6; color: var(--bl);
+            font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
         }}
         .jok-tutortext p {{ margin: 0 0 .6rem 0; }}
         .jok-tutortext p:last-child {{ margin-bottom: 0; }}
@@ -98,7 +99,8 @@ CSS_MALL = """
             font-size: var(--t-h3); margin: 0 0 .2rem 0;
         }}
         .jok-case .meta {{ font-size: var(--t-etikett); color: #6B6459; margin-bottom: .5rem; }}
-        .jok-case p {{ font-size: var(--t-brod); line-height: 1.65; color: var(--bl); margin: 0; }}
+        .jok-case p {{ font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+            font-size: var(--t-brod); line-height: 1.65; color: var(--bl); margin: 0; }}
         .jok-rnts {{ margin: .4rem 0 .8rem 0; }}
         .jok-rnts .steg {{
             display: flex; align-items: center; gap: .55rem;
@@ -242,6 +244,7 @@ CSS_MALL = """
             margin-bottom: .15rem;
         }}
         .jok-begrepp .falt p {{
+            font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
             font-size: var(--t-brod); line-height: 1.6; color: var(--bl); margin: 0;
         }}
         /* Skillnadsraden för kontrastpar: en enda framhävd rad. */

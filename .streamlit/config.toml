@@ -7,13 +7,36 @@ gatherUsageStats = false
 
 [theme]
 # Palett ur design_system.md avsnitt 1. Detaljerade komponentstilar ligger
-# i den centrala CSS-strängen i utils/ui.py.
+# i den centrala CSS-strängen i utils/css.py.
 primaryColor = "#2C5F8A"
 backgroundColor = "#FAF7F2"
 secondaryBackgroundColor = "#FFFFFF"
 textColor = "#1A2332"
-font = "serif"
+linkColor = "#2C5F8A"
+borderColor = "#E5E0D8"
+baseRadius = "0.5rem"
+
+# Typsnitt (design_system.md avsnitt 2): kontroller och UI i sans, rubriker
+# i serif, lagrum och kod i monospace. Alla tre följer med Streamlit, så
+# ingen typsnittsfil och ingen CDN behövs. Lång lästext (scenarier,
+# tutorsvar) sätts i serif direkt i CSS-mallen.
+font = "sans-serif"
+headingFont = "serif"
+codeFont = "monospace"
+
+# Semantiska färger, så att st.success, st.error, st.warning och st.info
+# följer appens palett i stället för Streamlits standardfärger.
+greenColor = "#2E7D4F"
+redColor = "#B3402A"
+yellowColor = "#8A6914"
+blueColor = "#2C5F8A"
+greenBackgroundColor = "#EAF4EE"
+redBackgroundColor = "#FBEDEA"
+yellowBackgroundColor = "#FFF8E1"
+blueBackgroundColor = "#EAF1F7"
 
 [client]
 # Ett fel visar ett allmänt meddelande, inte källkod och stackspår.
 showErrorDetails = "none"
+# Döljer utvecklarverktyg som Deploy-knappen i sidhuvudet.
+toolbarMode = "minimal"

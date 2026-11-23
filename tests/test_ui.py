@@ -752,3 +752,44 @@ def test_ingen_global_breddgrans_pa_huvudkolumnen():
     assert "stMainBlockContainer" not in css, (
         "En global breddgräns på huvudkolumnen är medvetet bortvald"
     )
+
+
+# --- Temat i .streamlit/config.toml (design_system.md 1 och 2) -----------------
+
+
+def _tema() -> dict:
+    import pathlib
+    import tomllib
+
+    rot = pathlib.Path(__file__).resolve().parent.parent
+    with open(rot / ".streamlit" / "config.toml", "rb") as fil:
+        return tomllib.load(fil)
+
+
+def test_temat_satter_sans_for_ui_och_serif_for_rubriker():
+    """UI i sans, rubriker i serif, kod och lagrum i monospace.
+
+    Temat satte tidigare font = "serif", så varje knapp, flik och etikett
+    renderades i serif i strid med design_system.md avsnitt 2. Testet ser
+    till att det felet inte kan komma tillbaka obemärkt.
+    """
+    tema = _tema()["theme"]
+    assert tema["font"] == "sans-serif"
+    assert tema["headingFont"] == "serif"
+    assert tema["codeFont"] == "monospace"
+
+
+def test_temats_semantiska_farger_foljer_paletten():
+    """st.success, st.error och st.info ska använda appens färger."""
+    from utils import ui
+
+    tema = _tema()["theme"]
+    assert tema["greenColor"] == ui.GREEN
+    assert tema["redColor"] == ui.ERROR
+    assert tema["blueColor"] == ui.BLUE
+    assert tema["primaryColor"] == ui.BLUE
+
+
+def test_utvecklarverktygen_doljs():
+    """Deploy-knappen och liknande utvecklarverktyg hör inte hemma i appen."""
+    assert _tema()["client"]["toolbarMode"] == "minimal"

@@ -17,20 +17,38 @@ Definieras i .streamlit/config.toml och i en central CSS sträng i utils/css.py.
 
 Kontrastkrav: all brödtext minst 7:1 mot bakgrund, accentfärger minst 4.5:1 (WCAG AA).
 
-config.toml:
+config.toml bär paletten även för Streamlits egna komponenter, så att
+st.success, st.error, st.warning och st.info, ramar och länkar följer appens
+färger utan CSS-överskrivningar:
 ```toml
 [theme]
 primaryColor = "#2C5F8A"
 backgroundColor = "#FAF7F2"
 secondaryBackgroundColor = "#FFFFFF"
 textColor = "#1A2332"
-font = "serif"
+linkColor = "#2C5F8A"
+borderColor = "#E5E0D8"
+baseRadius = "0.5rem"
+font = "sans-serif"
+headingFont = "serif"
+codeFont = "monospace"
+greenColor = "#2E7D4F"          # samt greenBackgroundColor = "#EAF4EE"
+redColor = "#B3402A"            # samt redBackgroundColor = "#FBEDEA"
+yellowColor = "#8A6914"         # samt yellowBackgroundColor = "#FFF8E1"
+blueColor = "#2C5F8A"           # samt blueBackgroundColor = "#EAF1F7"
+
+[client]
+toolbarMode = "minimal"         # ingen Deploy-knapp i sidhuvudet
 ```
+
+`tests/test_ui.py` läser filen och vaktar typsnitten och de semantiska färgerna.
 
 ## 2. Typografi
 
 * **Rubriker**: systemserif, Georgia, "Iowan Old Style", "Times New Roman". Serif för rubriker ger den juridiska, bokliga karaktären. Inga typsnittsfiler skeppas och ingen CDN används; stackarna är rena systemstackar så att appen ser likadan ut lokalt och på Streamlit Cloud.
-* **Brödtext och UI**: system sans (Streamlits standard).
+* **UI**: knappar, etiketter, fält, flikar, tabeller och bildtexter i sans (temats `font = "sans-serif"`). Kontroller ska se ut som kontroller, inte som brödtext.
+* **Lång lästext**: scenarier, tutorsvar och begreppsfält sätts i serif direkt i CSS-mallen, eftersom de läses som en text och inte som ett gränssnitt.
+* Temats `font`, `headingFont` och `codeFont` pekar på typsnitt som följer med Streamlit, så regeln om inga typsnittsfiler och ingen CDN gäller fortfarande.
 * **Lagrum och kod**: systemmonospace, ui-monospace, "SF Mono", Menlo, Consolas. Monospace för lagrum gör dem lätta att skanna och kopiera.
 * Storlekar: brödtext 17px med radavstånd 1.65 (långläsning), rubriknivåer 28/22/18px, chips och metadata 14px.
 * Maxbredd för löptext: 46rem. Scenariotext får aldrig löpa över hela skärmbredden.
