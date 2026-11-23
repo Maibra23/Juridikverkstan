@@ -57,6 +57,7 @@ from utils.ui import (
     footer_note,
     hero,
     render_case,
+    render_info,
     render_lagrum_chip,
     render_rnts_steg,
     render_tranar,
@@ -187,7 +188,7 @@ def _rendera_rattsfall(filnamn: str, modul: Modulscenarier) -> None:
     vore obrukbart.
     """
     if not modul.case:
-        st.info("Inga rättsfall i den här modulen ännu.")
+        render_info("Inga rättsfall i den här modulen ännu.")
         return
 
     st.html(render_tranar(tranar_etikett("rattsfall")))
@@ -412,7 +413,7 @@ def _rendera_facit(case: Case) -> None:
 
 def _rendera_quiz(modul: Modulscenarier) -> None:
     if not modul.flervalsfragor:
-        st.info("Inga quizfrågor i den här modulen ännu.")
+        render_info("Inga quizfrågor i den här modulen ännu.")
         return
 
     st.html(render_tranar(tranar_etikett("quiz")))
@@ -481,7 +482,7 @@ def _rendera_quizfraga(modul: str, nr: int, fraga: Flervalsfraga) -> None:
 
 def _rendera_lagrumsjakt(modul: Modulscenarier) -> None:
     if not modul.lagrumsjakt:
-        st.info("Ingen lagrumsjakt i den här modulen ännu.")
+        render_info("Ingen lagrumsjakt i den här modulen ännu.")
         return
 
     st.html(render_tranar(tranar_etikett("lagrumsjakt")))

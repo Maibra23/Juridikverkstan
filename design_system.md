@@ -113,7 +113,16 @@ Alla komponenter är Pythonfunktioner som renderar st.markdown med klasser ur de
   `summary_box` är borttagna: de användes inte, och `render_kort` bar en
   ikonparameter som stred mot ikonförbudet i 4.1.
 * **render_tutortext(text, rapport)**: tutorsvar där verifierade lagrum ersatts av chips och overifierade avsnitt fått gul markering. RNTS rubrikerna i svaret renderas som små kapitäler i myndighetsblått.
-* **render_varning(text)** och **render_info(text)**: gula respektive blå informationskort, används för budgettak, stale förklaringar och disclaimer.
+* **render_varning(text)** och **render_info(text)**: gula respektive blå informationskort, används för budgettak, stale förklaringar och disclaimer. Båda tillåter **fet** och *kursiv*; resten av texten escapas.
+
+**Återkoppling och notiser.** En sorts komponent per behov, så att samma sak alltid ser likadan ut:
+
+| Behov | Komponent |
+|---|---|
+| Omedelbart rättningsresultat | `st.success` eller `st.error` (temafärgade via config.toml), alltid med ord, aldrig enbart färg |
+| Saknad inmatning | `st.warning` |
+| Förklarande eller bestående notis, tomlägen | `render_info` |
+| Risk, overifierade lagrum, tak | `render_varning` |
 * **render_statuspanel()**: sidopanelens LLM status som en rad. I normalläget står det bara att tutorn är tillgänglig. Raden utökas först när något faktiskt är begränsat, och säger då olika saker: är tutorn otillgänglig namnger den vad som ändå fungerar utan den, och återstår mindre än en fjärdedel av något tak visar den anrop kvar i sessionen och i dag. Modellnamnet visas bara i det utökade läget.
 * **render_quizfraga(fraga)**: ännu inte byggd. Quizfrågan ritas i dag direkt i
   `utils/modulvy.py` med fet markdown och en radio. Komponenten ligger i etapp 2.

@@ -19,6 +19,7 @@ from utils.texter import antal_med_enhet
 from utils.ui import (
     footer_note,
     hero,
+    render_info,
     section_heading,
 )
 
@@ -38,7 +39,7 @@ resultat = alla_resultat()
 
 st.html(section_heading("RESULTAT", "Besvarade quizfrågor"))
 if not resultat:
-    st.info(
+    render_info(
         "Du har inte besvarat några quizfrågor ännu. Gå till en modul och börja "
         "öva, så visas dina resultat här."
     )
