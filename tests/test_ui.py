@@ -793,3 +793,53 @@ def test_temats_semantiska_farger_foljer_paletten():
 def test_utvecklarverktygen_doljs():
     """Deploy-knappen och liknande utvecklarverktyg hör inte hemma i appen."""
     assert _tema()["client"]["toolbarMode"] == "minimal"
+
+
+# --- Tokens och kontrast (design_system.md 1 och 2) ---------------------------
+
+
+def _relativ_luminans(hex_farg: str) -> float:
+    """Relativ luminans enligt WCAG 2.1."""
+    kanaler = [int(hex_farg.lstrip("#")[i : i + 2], 16) / 255 for i in (0, 2, 4)]
+    linjara = [
+        k / 12.92 if k <= 0.04045 else ((k + 0.055) / 1.055) ** 2.4 for k in kanaler
+    ]
+    return 0.2126 * linjara[0] + 0.7152 * linjara[1] + 0.0722 * linjara[2]
+
+
+def _kontrast(forgrund: str, bakgrund: str) -> float:
+    ljus, mork = sorted(
+        (_relativ_luminans(forgrund), _relativ_luminans(bakgrund)), reverse=True
+    )
+    return (ljus + 0.05) / (mork + 0.05)
+
+
+def _token(namn: str) -> str:
+    traff = re.search(rf"--{namn}:\s*(#[0-9A-Fa-f]{{6}})", utils.css.CSS_MALL)
+    assert traff, f"Token --{namn} saknas i :root"
+    return traff.group(1)
+
+
+@pytest.mark.parametrize("token", ["guld-text", "gra", "gra-dampad"])
+@pytest.mark.parametrize("bakgrund", ["#FFFFFF", "#FAF7F2"])
+def test_texttokens_klarar_wcag_aa(token, bakgrund):
+    """Text i 13px ska nå minst 4.5:1 mot både kort och pergament."""
+    assert _kontrast(_token(token), bakgrund) >= 4.5
+
+
+def test_guld_som_text_anvander_textguld():
+    """Paragrafspannen i lagkorten är text, så de ska använda --guld-text."""
+    traff = re.search(r"\.avsnittsrad \.spann \{\{([^}]*)\}\}", utils.css.CSS_MALL)
+    assert traff and "var(--guld-text)" in traff.group(1)
+
+
+def test_kommer_raderna_anvander_dampad_token():
+    traff = re.search(r"\.jok-nav-kommer \{\{([^}]*)\}\}", utils.css.CSS_MALL)
+    assert traff and "var(--gra-dampad)" in traff.group(1)
+
+
+def test_typsnittsstackar_finns_bara_i_root():
+    """Stackarna deklareras en gång i :root och används via tokens."""
+    _, efter_root = utils.css.CSS_MALL.split("--skugga:", 1)
+    for literal in ("Georgia", "ui-monospace", "#6B6459", "#9A9384"):
+        assert literal not in efter_root, f"{literal} ska ersättas av en token"

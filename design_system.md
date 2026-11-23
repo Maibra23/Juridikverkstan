@@ -17,6 +17,20 @@ Definieras i .streamlit/config.toml och i en central CSS sträng i utils/css.py.
 
 Kontrastkrav: all brödtext minst 7:1 mot bakgrund, accentfärger minst 4.5:1 (WCAG AA).
 
+Härledda tokens i `:root` (utils/css.py), för färger som annars skulle
+hårdkodas:
+
+| Token | Värde | Användning | Kontrast |
+|---|---|---|---|
+| `--gra` | `#6B6459` | Metadata, dämpade etiketter | 5.5:1 mot vitt |
+| `--gra-dampad` | `#736C5E` | "(kommer)"-rader i sidopanelen | minst 4.5:1 mot vitt och pergament |
+| `--guld-text` | `#8A6608` | Guld som **text**, t.ex. paragrafspann i lagkorten | minst 4.5:1 mot vitt och pergament |
+
+`--guld` (`#B8860B`) når bara cirka 3.2:1 och används därför endast för ramar,
+linjer och grafnoder, aldrig för text. `tests/test_ui.py` räknar ut kontrasten
+för alla tre texttokens och vaktar att typsnittsstackar och gråtoner bara
+deklareras i `:root`.
+
 config.toml bär paletten även för Streamlits egna komponenter, så att
 st.success, st.error, st.warning och st.info, ramar och länkar följer appens
 färger utan CSS-överskrivningar:
@@ -78,6 +92,10 @@ det.
 `--s7` 48. Regeln som gör skalan meningsfull: **avstånd inom en grupp är alltid
 mindre än avstånd mellan grupper.** Närhet är den starkaste grupperingssignal
 som finns, och den bär struktur utan att kräva ramar.
+
+Hörnradier: `--r1` 6, `--r2` 10, `--r3` 12 (pills behåller 999px). Kort
+delar en enda skugga, `--skugga`. Typsnittsstackarna ligger i `--font-serif`,
+`--font-mono` och `--font-sans`.
 
 Skalan styr sidopanelens vertikala rytm (4.1), där den gör mest nytta: ett träd
 fyra nivåer djupt blir läsbart av avstånden ensamma. Övriga marginaler är ännu
