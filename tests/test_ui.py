@@ -1131,3 +1131,31 @@ def test_ratt_svar_utan_utropstecken_och_sekundar_tutor(monkeypatch):
 
 def test_quizframsteg():
     assert modulvy.quizframsteg(2, 3, 8) == "3 av 8 besvarade, 2 rätt"
+
+
+# --- T12: startsidans stat-rad och metodrad ------------------------------------
+
+
+def test_stat_rad_ritar_ett_block_per_post():
+    from utils.ui import stat_rad
+
+    html_ut = stat_rad((("3", "moduler påbörjade"), ("5 av 7", "rätt på quiz")))
+    assert html_ut.count('class="jok-stat"') == 2
+    assert '<div class="tal">5 av 7</div>' in html_ut
+
+
+def test_stat_rad_escapar():
+    from utils.ui import stat_rad
+
+    html_ut = stat_rad((("<b>1</b>", "<script>x</script>"),))
+    assert "<script>" not in html_ut and "<b>" not in html_ut
+
+
+def test_metodraden_ar_text_och_inte_lankar():
+    from utils.rnts import RNTS_STEG
+    from utils.ui import pipeline_steps
+
+    html_ut = pipeline_steps(list(RNTS_STEG))
+    assert "<a " not in html_ut and "<button" not in html_ut
+    for steg in RNTS_STEG:
+        assert steg in html_ut

@@ -84,6 +84,26 @@ CSS_MALL = """
             background: var(--panel); border: 1px solid var(--ram);
             border-radius: 999px; padding: .35rem .9rem; font-size: var(--t-etikett);
         }}
+        /* Metodraden på startsidan: text, inte knappar. */
+        .jok-metod {{
+            display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5);
+            margin: var(--s2) 0 var(--s4) 0; font-size: var(--t-ui); color: var(--bl);
+        }}
+        .jok-metod .nr {{
+            font-family: var(--font-mono); font-size: var(--t-etikett);
+            color: var(--bla); font-weight: 700; margin-right: var(--s1);
+        }}
+        /* Framstegstal på startsidan. */
+        .jok-stat-rad {{
+            display: flex; flex-wrap: wrap; gap: var(--s5);
+            margin: var(--s3) 0 var(--s4) 0;
+        }}
+        .jok-stat .tal {{
+            font-family: var(--font-serif); font-size: var(--t-h2);
+            font-variant-numeric: lining-nums tabular-nums; color: var(--bl);
+            line-height: 1.2;
+        }}
+        .jok-stat .etikett {{ font-size: var(--t-etikett); color: var(--gra); }}
         .jok-chip {{
             display: inline-flex; align-items: center; gap: .3rem;
             font-family: var(--font-mono); font-size: var(--t-etikett);

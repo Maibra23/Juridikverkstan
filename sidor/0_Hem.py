@@ -24,8 +24,8 @@ from utils.framsteg import pabborjade_moduler
 from utils.navigation import SENAST_BESOKT_NYCKEL, cta_mal, sida_for_namn
 from utils.obsidian import bygg_valv, hamta_case_analyser
 from utils.quiz import alla_resultat
-from utils.texter import antal_med_enhet, uppraknad
-from utils.ui import footer_note, hero, section_heading
+from utils.rnts import RNTS_STEG
+from utils.ui import footer_note, hero, pipeline_steps, section_heading, stat_rad
 
 
 def render_landing() -> None:
@@ -47,6 +47,8 @@ def render_landing() -> None:
     st.caption(
         "Studieverktyg, inte juridisk rådgivning. Mata inte in personuppgifter."
     )
+    # Metoden i en blick: de fyra stegen som varje övning tränar.
+    st.html(pipeline_steps(list(RNTS_STEG)))
 
     _render_cta()
     _render_framsteg()
@@ -109,13 +111,13 @@ def _render_framsteg() -> None:
     ratt = sum(r for r, _b in resultat.values())
     besvarade = sum(b for _r, b in resultat.values())
 
-    delar = [
-        antal_med_enhet(moduler, "modul påbörjad", "moduler påbörjade"),
-        antal_med_enhet(fall, "rättsfall genomfört", "rättsfall genomförda"),
+    poster = [
+        (str(moduler), "modul påbörjad" if moduler == 1 else "moduler påbörjade"),
+        (str(fall), "rättsfall genomfört" if fall == 1 else "rättsfall genomförda"),
     ]
     if besvarade:
-        delar.append(f"{ratt} av {besvarade} rätt på quiz")
-    st.markdown(uppraknad(delar))
+        poster.append((f"{ratt} av {besvarade}", "rätt på quiz"))
+    st.html(stat_rad(tuple(poster)))
 
     st.caption(
         "Framstegen gäller den här sessionen. Stänger du fliken är de borta. "

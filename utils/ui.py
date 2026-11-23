@@ -153,9 +153,30 @@ def render_rnts_steg(steg: tuple[tuple[str, str], ...], vagrat: bool = False) ->
 
 
 def pipeline_steps(steps: list[str]) -> str:
-    """Vågrät stegindikator för arbetsgången."""
-    inner = "".join(f"<span>{i}. {html.escape(s)}</span>" for i, s in enumerate(steps, 1))
-    return f'<div class="jok-pipeline">{inner}</div>'
+    """Vågrät stegrad för arbetsgången, t.ex. RNTS-metoden på startsidan.
+
+    Ren text utan ram: stegen är en beskrivning av metoden, inte knappar, och
+    ska inte kunna misstas för navigering (design_system.md 4, princip 6).
+    """
+    inner = "".join(
+        f'<span><span class="nr">{i}</span> {html.escape(s)}</span>'
+        for i, s in enumerate(steps, 1)
+    )
+    return f'<div class="jok-metod" aria-label="Arbetsgången">{inner}</div>'
+
+
+def stat_rad(poster: tuple[tuple[str, str], ...]) -> str:
+    """Rad med tal och etikett, t.ex. (("3", "moduler påbörjade"), ...).
+
+    Talen sätts med tabellsiffror så att de står still när de ändras. Raden
+    bryts till en kolumn på smal skärm.
+    """
+    block = "".join(
+        f'<div class="jok-stat"><div class="tal">{html.escape(tal)}</div>'
+        f'<div class="etikett">{html.escape(etikett)}</div></div>'
+        for tal, etikett in poster
+    )
+    return f'<div class="jok-stat-rad">{block}</div>'
 
 
 def render_lagrum_chip(ref: str, url: str | None = None, verifierad: bool = True,
