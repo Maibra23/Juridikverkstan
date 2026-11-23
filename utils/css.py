@@ -56,6 +56,15 @@ CSS_MALL = """
         .jok-chip:focus-visible, .jok-lagkort a:focus-visible {{
             outline: 2px solid var(--bla); outline-offset: 2px;
         }}
+        /* Sidlänkar i innehållsytan (Kunskapstest, "Öva i modulen") ska se
+           ut som länkar. Sidopanelens länkar berörs inte: de är navigering
+           och har sin egen stil (design_system.md 4.1). */
+        [data-testid="stMain"] [data-testid="stPageLink"] a p {{
+            color: var(--bla); font-weight: 600;
+        }}
+        [data-testid="stMain"] [data-testid="stPageLink"] a:hover p {{
+            text-decoration: underline;
+        }}
         .jok-hero {{
             max-width: 46rem; margin: 0 0 1.5rem 0;
         }}
